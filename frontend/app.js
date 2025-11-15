@@ -196,6 +196,176 @@ const ACControlTab = ({ onCommand, history }) => {
 };
 
 // ============================================
+// COMPONENTE: Sleep Timer Tab
+// ============================================
+
+const SleepTimerTab = ({ timers, onLoadTimers, onCreateTimer, onCancelTimer }) => {
+    const [action, setAction] = useState('off');
+    const [delayMinutes, setDelayMinutes] = useState(30);
+    const [remainingTime, setRemainingTime] = useState({});
+
+    // Cargar timers al montar
+    useEffect(() => {
+        onLoadTimers();
+        const interval = setInterval(onLoadTimers, 30000); // Actualizar cada 30 segundos
+        return () => clearInterval(interval);
+    }, []);
+
+    // Actualizar tiempo restante cada segundo
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const newRemainingTime = {};
+            timers.forEach(timer => {
+                newRemainingTime[timer.id] = timer.remaining_seconds - 1;
+            });
+            setRemainingTime(newRemainingTime);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [timers]);
+
+    // Inicializar tiempo restante cuando cambian los timers
+    useEffect(() => {
+        const newRemainingTime = {};
+        timers.forEach(timer => {
+            newRemainingTime[timer.id] = timer.remaining_seconds;
+        });
+        setRemainingTime(newRemainingTime);
+    }, [timers]);
+
+    const handleCreate = () => {
+        if (delayMinutes < 1 || delayMinutes > 1440) {
+            return;
+        }
+        onCreateTimer(action, delayMinutes);
+    };
+
+    const formatTime = (seconds) => {
+        if (seconds <= 0) return 'Ejecutando...';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${secs}s`;
+        } else {
+            return `${secs}s`;
+        }
+    };
+
+    const presetMinutes = [15, 30, 60, 120];
+
+    return html`
+        <div>
+            <h3 class="text-xl font-semibold mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Temporizador de Apagado
+            </h3>
+
+            <div class="bg-gray-700 rounded-lg p-4 mb-6">
+                <p class="text-gray-300 text-sm mb-2">
+                    Configura el AC para que se apague (o encienda) automáticamente después de un tiempo determinado.
+                    Ideal para antes de dormir.
+                </p>
+            </div>
+
+            <!-- Crear nuevo timer -->
+            <div class="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700 mb-6">
+                <h4 class="text-lg font-semibold mb-4">Crear Temporizador</h4>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Acción</label>
+                        <select
+                            value=${action}
+                            onChange=${e => setAction(e.target.value)}
+                            class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2"
+                        >
+                            <option value="off">Apagar AC</option>
+                            <option value="on">Encender AC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Tiempo (minutos)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="1440"
+                            value=${delayMinutes}
+                            onInput=${e => setDelayMinutes(parseInt(e.target.value))}
+                            class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2"
+                        />
+                    </div>
+                </div>
+
+                <!-- Botones de presets -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Presets rápidos</label>
+                    <div class="flex gap-2 flex-wrap">
+                        ${presetMinutes.map(minutes => html`
+                            <button
+                                onClick=${() => setDelayMinutes(minutes)}
+                                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                            >
+                                ${minutes < 60 ? `${minutes} min` : `${minutes / 60}h`}
+                            </button>
+                        `)}
+                    </div>
+                </div>
+
+                <button
+                    onClick=${handleCreate}
+                    class="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold"
+                >
+                    Crear Temporizador
+                </button>
+            </div>
+
+            <!-- Lista de timers activos -->
+            <div class="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700">
+                <h4 class="text-lg font-semibold mb-4">Temporizadores Activos</h4>
+                ${timers && timers.length > 0 ? html`
+                    <div class="space-y-3">
+                        ${timers.map(timer => html`
+                            <div class="bg-gray-700 rounded-lg p-4 flex items-center justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${timer.action === 'on' ? 'bg-green-600' : 'bg-red-600'}">
+                                            ${timer.action === 'on' ? 'Encender' : 'Apagar'}
+                                        </span>
+                                        <span class="text-2xl font-bold text-primary-400">
+                                            ${formatTime(remainingTime[timer.id] || timer.remaining_seconds)}
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-gray-400">
+                                        Se ejecutará a las ${new Date(timer.execute_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick=${() => onCancelTimer(timer.id)}
+                                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold ml-4"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        `)}
+                    </div>
+                ` : html`
+                    <div class="text-center py-8 text-gray-400">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p>No hay temporizadores activos</p>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+};
+
+// ============================================
 // COMPONENTE: LED Control Tab
 // ============================================
 
@@ -508,6 +678,7 @@ const App = () => {
     const [acStatus, setAcStatus] = useState('unknown');
     const [acHistory, setAcHistory] = useState([]);
     const [schedules, setSchedules] = useState([]);
+    const [sleepTimers, setSleepTimers] = useState([]);
     const [activeTab, setActiveTab] = useState('ac');
     const [toasts, setToasts] = useState([]);
 
@@ -645,6 +816,39 @@ const App = () => {
         }
     };
 
+    // Sleep Timer Commands
+    const loadSleepTimers = async () => {
+        try {
+            const response = await apiRequest(`/devices/${DEVICE_ID}/sleep-timers`);
+            setSleepTimers(response.timers || []);
+        } catch (error) {
+            console.error('Error loading sleep timers:', error);
+        }
+    };
+
+    const createSleepTimer = async (action, delayMinutes) => {
+        try {
+            await apiRequest(`/devices/${DEVICE_ID}/sleep-timers`, 'POST', {
+                action,
+                delay_minutes: delayMinutes
+            });
+            showToast(`Temporizador creado: ${action === 'on' ? 'encender' : 'apagar'} en ${delayMinutes} minutos`, 'success');
+            loadSleepTimers();
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        }
+    };
+
+    const cancelSleepTimer = async (timerId) => {
+        try {
+            await apiRequest(`/devices/${DEVICE_ID}/sleep-timers/${timerId}`, 'DELETE');
+            showToast('Temporizador cancelado', 'success');
+            loadSleepTimers();
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        }
+    };
+
     // Initial load and auto-refresh
     useEffect(() => {
         loadData();
@@ -762,19 +966,20 @@ const App = () => {
                 <!-- Tabs -->
                 <div class="bg-gray-800 rounded-xl shadow-xl border border-gray-700 mb-8">
                     <div class="border-b border-gray-700">
-                        <nav class="flex space-x-1 p-2">
-                            ${['ac', 'led', 'schedules', 'config'].map(tab => html`
+                        <nav class="flex space-x-1 p-2 overflow-x-auto">
+                            ${['ac', 'timer', 'led', 'schedules', 'config'].map(tab => html`
                                 <button
                                     onClick=${() => setActiveTab(tab)}
-                                    class="px-6 py-3 rounded-lg font-medium ${activeTab === tab ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'}"
+                                    class="px-6 py-3 rounded-lg font-medium whitespace-nowrap ${activeTab === tab ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'}"
                                 >
-                                    ${tab === 'ac' ? 'Control AC' : tab === 'led' ? 'Control LED' : tab === 'schedules' ? 'Programaciones' : 'Configuración'}
+                                    ${tab === 'ac' ? 'Control AC' : tab === 'timer' ? 'Temporizador' : tab === 'led' ? 'Control LED' : tab === 'schedules' ? 'Programaciones' : 'Configuración'}
                                 </button>
                             `)}
                         </nav>
                     </div>
                     <div class="p-6">
                         ${activeTab === 'ac' && ACControlTab({ onCommand: sendACCommand, history: acHistory })}
+                        ${activeTab === 'timer' && SleepTimerTab({ timers: sleepTimers, onLoadTimers: loadSleepTimers, onCreateTimer: createSleepTimer, onCancelTimer: cancelSleepTimer })}
                         ${activeTab === 'led' && LEDControlTab({ onSend: sendLEDCommand })}
                         ${activeTab === 'schedules' && SchedulesTab({ schedules, onLoadSchedules: loadSchedules, onCreateSchedule: createSchedule, onDeleteSchedule: deleteSchedule })}
                         ${activeTab === 'config' && ConfigTab({ onUpdate: updateConfig, onReboot: rebootDevice })}

@@ -25,12 +25,13 @@ services:
       - API_PORT=8000
       - DEBUG=False
       - TZ=America/Argentina/Buenos_Aires
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/database.sqlite
     depends_on:
       - mqtt-broker
     restart: unless-stopped
     volumes:
       - ./api.py:/app/api.py
-      - ./database.sqlite:/app/database.sqlite
+      - ./data:/app/data
       - ../frontend:/app/frontend:ro
       - /etc/localtime:/etc/localtime:ro
 

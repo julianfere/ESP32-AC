@@ -6,7 +6,7 @@ import json
 from datetime import datetime, time as dt_time
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import AsyncSessionLocal, Schedule, AcEvent
+from database import AsyncSessionLocal, Schedule, AcEvent, SleepTimer
 from mqtt_client import get_mqtt_client
 import logging
 
@@ -50,6 +50,7 @@ class SchedulerService:
         while self.running:
             try:
                 await self._check_and_execute_schedules()
+                await self._check_and_execute_sleep_timers()
 
                 # Esperar hasta el próximo minuto
                 await asyncio.sleep(60)
@@ -143,6 +144,65 @@ class SchedulerService:
         await session.commit()
 
         logger.info(f"✓ Schedule ejecutado exitosamente: {schedule.name} ({schedule.action})")
+
+    async def _check_and_execute_sleep_timers(self):
+        """Revisar y ejecutar sleep timers que ya deben ejecutarse"""
+        now = datetime.utcnow()
+
+        async with AsyncSessionLocal() as session:
+            # Obtener todos los sleep timers pendientes que ya deberían ejecutarse
+            result = await session.execute(
+                select(SleepTimer)
+                .where(SleepTimer.is_executed == False)
+                .where(SleepTimer.execute_at <= now)
+            )
+            timers = result.scalars().all()
+
+            if not timers:
+                return
+
+            logger.info(f"⏰ Encontrados {len(timers)} sleep timers para ejecutar")
+
+            for timer in timers:
+                try:
+                    logger.info(f"⚡ Ejecutando sleep timer: Device {timer.device_id} - {timer.action}")
+                    await self._execute_sleep_timer(session, timer)
+
+                    # Marcar como ejecutado y eliminar
+                    await session.delete(timer)
+                    await session.commit()
+
+                except Exception as e:
+                    logger.error(f"Error ejecutando sleep timer {timer.id}: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+    async def _execute_sleep_timer(self, session: AsyncSession, timer: SleepTimer):
+        """Ejecutar un sleep timer específico"""
+        mqtt = get_mqtt_client()
+
+        if not mqtt:
+            logger.error("MQTT client no disponible")
+            return
+
+        # Enviar comando MQTT
+        success = mqtt.send_ac_command(timer.device_id, timer.action)
+
+        if not success:
+            logger.error(f"Fallo al enviar comando MQTT para sleep timer {timer.id}")
+            return
+
+        # Guardar evento en la base de datos
+        ac_event = AcEvent(
+            device_id=timer.device_id,
+            action=timer.action,
+            triggered_by=f'sleep_timer:{timer.id}',
+            timestamp=datetime.utcnow()
+        )
+        session.add(ac_event)
+        await session.commit()
+
+        logger.info(f"✓ Sleep timer ejecutado exitosamente: {timer.action} for device {timer.device_id}")
 
 
 # Instancia global del scheduler

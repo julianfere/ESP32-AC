@@ -6,7 +6,7 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import (
     get_session, Device, Measurement, MeasurementAverage,
-    AcEvent, Schedule, LedConfig
+    AcEvent, Schedule, LedConfig, SleepTimer
 )
 from mqtt_client import get_mqtt_client
 from scheduler import get_scheduler
@@ -72,6 +72,10 @@ class ScheduleCreate(BaseModel):
     action: str  # 'on' or 'off'
     days_of_week: List[int]  # [1,2,3,4,5] = lun-vie
     time: str  # "08:00"
+
+class SleepTimerCreate(BaseModel):
+    action: str  # 'on' or 'off'
+    delay_minutes: int  # cuántos minutos hasta ejecutar
 
 # ============================================
 # ENDPOINTS: DISPOSITIVOS
@@ -474,14 +478,104 @@ async def delete_schedule(
         .where(Schedule.device_id == device_id)
     )
     schedule = result.scalar_one_or_none()
-    
+
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
-    
+
     await session.delete(schedule)
     await session.commit()
-    
+
     return {"message": "Schedule deleted successfully"}
+
+# ============================================
+# ENDPOINTS: SLEEP TIMER
+# ============================================
+
+@app.get("/devices/{device_id}/sleep-timers")
+async def get_sleep_timers(
+    device_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtener sleep timers activos de un dispositivo"""
+    result = await session.execute(
+        select(SleepTimer)
+        .where(SleepTimer.device_id == device_id)
+        .where(SleepTimer.is_executed == False)
+        .order_by(SleepTimer.execute_at)
+    )
+    timers = result.scalars().all()
+
+    now = datetime.utcnow()
+
+    return {
+        "device_id": device_id,
+        "timers": [
+            {
+                "id": t.id,
+                "action": t.action,
+                "execute_at": t.execute_at.isoformat(),
+                "created_at": t.created_at.isoformat(),
+                "remaining_seconds": max(0, int((t.execute_at - now).total_seconds()))
+            }
+            for t in timers
+        ]
+    }
+
+@app.post("/devices/{device_id}/sleep-timers")
+async def create_sleep_timer(
+    device_id: str,
+    timer: SleepTimerCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    """Crear un sleep timer (temporizador de una sola ejecución)"""
+    if timer.action not in ['on', 'off']:
+        raise HTTPException(status_code=400, detail="Action must be 'on' or 'off'")
+
+    if timer.delay_minutes < 1 or timer.delay_minutes > 1440:  # Máximo 24 horas
+        raise HTTPException(status_code=400, detail="Delay must be between 1 and 1440 minutes")
+
+    execute_at = datetime.utcnow() + timedelta(minutes=timer.delay_minutes)
+
+    new_timer = SleepTimer(
+        device_id=device_id,
+        action=timer.action,
+        execute_at=execute_at
+    )
+    session.add(new_timer)
+    await session.commit()
+    await session.refresh(new_timer)
+
+    return {
+        "id": new_timer.id,
+        "device_id": device_id,
+        "action": timer.action,
+        "execute_at": execute_at.isoformat(),
+        "delay_minutes": timer.delay_minutes,
+        "message": f"Sleep timer created: {timer.action} in {timer.delay_minutes} minutes"
+    }
+
+@app.delete("/devices/{device_id}/sleep-timers/{timer_id}")
+async def cancel_sleep_timer(
+    device_id: str,
+    timer_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """Cancelar un sleep timer"""
+    result = await session.execute(
+        select(SleepTimer)
+        .where(SleepTimer.id == timer_id)
+        .where(SleepTimer.device_id == device_id)
+        .where(SleepTimer.is_executed == False)
+    )
+    timer = result.scalar_one_or_none()
+
+    if not timer:
+        raise HTTPException(status_code=404, detail="Sleep timer not found or already executed")
+
+    await session.delete(timer)
+    await session.commit()
+
+    return {"message": "Sleep timer cancelled successfully"}
 
 # ============================================
 # HEALTH CHECK
