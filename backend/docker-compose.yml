@@ -24,11 +24,15 @@ services:
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - DEBUG=False
+      - TZ=America/Argentina/Buenos_Aires
     depends_on:
       - mqtt-broker
     restart: unless-stopped
     volumes:
+      - ./api.py:/app/api.py
       - ./database.sqlite:/app/database.sqlite
+      - ../frontend:/app/frontend:ro
+      - /etc/localtime:/etc/localtime:ro
 
 volumes:
   mosquitto_data:

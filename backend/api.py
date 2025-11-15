@@ -1,18 +1,43 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import (
-    get_session, Device, Measurement, MeasurementAverage, 
+    get_session, Device, Measurement, MeasurementAverage,
     AcEvent, Schedule, LedConfig
 )
 from mqtt_client import get_mqtt_client
+from scheduler import get_scheduler
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timedelta
+from pathlib import Path
 
 app = FastAPI(title="Sistema de Clima Inteligente API", version="1.0.0")
 
+# ============================================
+# STARTUP Y SHUTDOWN
+# ============================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Iniciar servicios al arrancar la aplicación"""
+    scheduler = get_scheduler()
+    await scheduler.start()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Detener servicios al cerrar la aplicación"""
+    scheduler = get_scheduler()
+    await scheduler.stop()
+
+# Configurar path al frontend
+# Dentro del contenedor Docker, el frontend está en /app/frontend
+frontend_path = Path(__file__).parent / "frontend"
+print(f"Frontend path: {frontend_path}")
+print(f"Frontend exists: {frontend_path.exists()}")
 # CORS para permitir requests desde frontend
 app.add_middleware(
     CORSMiddleware,
@@ -21,6 +46,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Servir archivos estáticos del frontend
+if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
 
 # ============================================
 # MODELOS PYDANTIC
@@ -462,15 +491,29 @@ async def delete_schedule(
 async def health_check():
     """Health check endpoint"""
     mqtt = get_mqtt_client()
+    scheduler = get_scheduler()
     return {
         "status": "healthy",
         "mqtt_connected": mqtt.connected if mqtt else False,
+        "scheduler_running": scheduler.running if scheduler else False,
         "timestamp": datetime.utcnow().isoformat()
     }
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Servir el frontend"""
+    index_file = frontend_path / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {
+        "message": "Sistema de Clima Inteligente API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+@app.get("/api")
+async def api_info():
+    """Información de la API"""
     return {
         "message": "Sistema de Clima Inteligente API",
         "version": "1.0.0",
