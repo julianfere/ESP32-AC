@@ -1,230 +1,80 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Clima Inteligente</title>
+    <title>Panel Admin - Sistema de Clima Inteligente</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Preact + HTM + Hooks desde CDN -->
+    <script type="module">
+        import { render, h } from 'https://esm.sh/preact@10.19.3';
+        import { useState, useEffect, useRef } from 'https://esm.sh/preact@10.19.3/hooks';
+        import htm from 'https://esm.sh/htm@3.1.1';
+
+        const html = htm.bind(h);
+
+        // Hacer disponibles globalmente para los componentes
+        window.preact = { render, h, useState, useEffect, useRef, html };
+    </script>
+
+    <!-- Configuración de Tailwind -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+        /* Animaciones suaves */
+        * {
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
-        .container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
+
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
         }
-        h2 {
-            color: #555;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 10px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
             border-radius: 4px;
-            font-size: 14px;
-            box-sizing: border-box;
         }
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        button.danger {
-            background-color: #dc3545;
-        }
-        button.danger:hover {
-            background-color: #c82333;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .response {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-        .success {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-        .device-info {
-            background-color: #e3f2fd;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-        .color-preview {
-            width: 50px;
-            height: 30px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            display: inline-block;
-            margin-left: 10px;
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
         }
     </style>
 </head>
-<body>
-    <h1>🌡️ Sistema de Clima Inteligente</h1>
 
-    <!-- Selección de dispositivo -->
-    <div class="container">
-        <h2>Seleccionar Dispositivo</h2>
-        <div class="form-group">
-            <label for="deviceSelect">Dispositivo:</label>
-            <select id="deviceSelect" onchange="loadDeviceInfo()">
-                <option value="">-- Seleccionar dispositivo --</option>
-            </select>
-            <button onclick="loadDevices()">🔄 Cargar Dispositivos</button>
-            <button onclick="testConnection()" style="background-color: #28a745;">🔍 Probar Conexión</button>
-        </div>
-        <div id="deviceInfo" class="device-info" style="display: none;"></div>
-    </div>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div id="app"></div>
 
-    <div class="grid">
-        <!-- Mediciones -->
-        <div class="container">
-            <h2>📊 Mediciones</h2>
-            <button onclick="getMeasurements()">Ver Todas las Mediciones</button>
-            <button onclick="getLatestMeasurement()">Última Medición</button>
-            <button onclick="getAverages()">Promedios</button>
-            <button onclick="getStats()">Estadísticas</button>
-            <div id="measurementsResponse" class="response"></div>
-        </div>
-
-        <!-- Control de Aire Acondicionado -->
-        <div class="container">
-            <h2>❄️ Control de AC</h2>
-            <div class="form-group">
-                <button onclick="sendACCommand('on')">🟢 Encender AC</button>
-                <button onclick="sendACCommand('off')" class="danger">🔴 Apagar AC</button>
-            </div>
-            <button onclick="getACStatus()">Ver Estado AC</button>
-            <button onclick="getACHistory()">Ver Historial AC</button>
-            <div id="acResponse" class="response"></div>
-        </div>
-
-        <!-- Control de LED -->
-        <div class="container">
-            <h2>💡 Control de LED</h2>
-            <div class="form-group">
-                <label for="redValue">Rojo (0-255):</label>
-                <input type="number" id="redValue" min="0" max="255" value="255" oninput="updateColorPreview()">
-            </div>
-            <div class="form-group">
-                <label for="greenValue">Verde (0-255):</label>
-                <input type="number" id="greenValue" min="0" max="255" value="255" oninput="updateColorPreview()">
-            </div>
-            <div class="form-group">
-                <label for="blueValue">Azul (0-255):</label>
-                <input type="number" id="blueValue" min="0" max="255" value="255" oninput="updateColorPreview()">
-            </div>
-            <div class="color-preview" id="colorPreview"></div>
-            <br><br>
-            <button onclick="sendLEDCommand()">🌈 Enviar Color LED</button>
-            <div id="ledResponse" class="response"></div>
-        </div>
-
-        <!-- Configuración -->
-        <div class="container">
-            <h2>⚙️ Configuración</h2>
-            <div class="form-group">
-                <label for="sampleInterval">Intervalo de muestreo (segundos):</label>
-                <input type="number" id="sampleInterval" value="30">
-            </div>
-            <div class="form-group">
-                <label for="avgSamples">Muestras para promedio:</label>
-                <input type="number" id="avgSamples" value="10">
-            </div>
-            <button onclick="updateConfig()">💾 Actualizar Configuración</button>
-            <button onclick="rebootDevice()" class="danger">🔄 Reiniciar Dispositivo</button>
-            <div id="configResponse" class="response"></div>
-        </div>
-
-        <!-- Programaciones -->
-        <div class="container">
-            <h2>📅 Programaciones</h2>
-            <button onclick="getSchedules()">Ver Programaciones</button>
-            <div class="form-group">
-                <label for="scheduleName">Nombre:</label>
-                <input type="text" id="scheduleName" placeholder="Ejemplo: Encender mañana">
-            </div>
-            <div class="form-group">
-                <label for="scheduleAction">Acción:</label>
-                <select id="scheduleAction">
-                    <option value="on">Encender</option>
-                    <option value="off">Apagar</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="scheduleTime">Hora (HH:MM):</label>
-                <input type="time" id="scheduleTime">
-            </div>
-            <div class="form-group">
-                <label>Días de la semana:</label>
-                <div>
-                    <input type="checkbox" id="day1" value="1"> Lunes
-                    <input type="checkbox" id="day2" value="2"> Martes
-                    <input type="checkbox" id="day3" value="3"> Miércoles
-                    <input type="checkbox" id="day4" value="4"> Jueves
-                    <input type="checkbox" id="day5" value="5"> Viernes
-                    <input type="checkbox" id="day6" value="6"> Sábado
-                    <input type="checkbox" id="day7" value="7"> Domingo
-                </div>
-            </div>
-            <button onclick="createSchedule()">➕ Crear Programación</button>
-            <div id="scheduleResponse" class="response"></div>
-        </div>
-
-        <!-- Estado del Sistema -->
-        <div class="container">
-            <h2>💚 Estado del Sistema</h2>
-            <button onclick="checkHealth()">🔍 Verificar Estado API</button>
-            <div id="healthResponse" class="response"></div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
+    <!-- Componentes y App -->
+    <script type="module" src="/static/app.js"></script>
 </body>
+
 </html>
