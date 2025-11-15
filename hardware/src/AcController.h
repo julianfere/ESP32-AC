@@ -55,7 +55,7 @@ public:
 
   void begin()
   {
-    IrSender.begin(irPin, false);
+    IrSender.begin(irPin);
     Serial.println("✓ Controlador AC iniciado");
   }
 

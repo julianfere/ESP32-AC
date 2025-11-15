@@ -19,13 +19,6 @@
 AcController aire(IR_SEND_PIN);
 RgbLed led(PIN_RED, PIN_GREEN, PIN_BLUE);
 TemperatureSensor sensor(DHT_PIN);
-
-// ============================================
-// INSTANCIAS DE COMPONENTES
-// ============================================
-AcController aire(IR_SEND_PIN);
-RgbLed led(PIN_RED, PIN_GREEN, PIN_BLUE);
-TemperatureSensor sensor(DHT_PIN);
 MqttManager mqtt(MQTT_BROKER, MQTT_PORT, DEVICE_ID);
 
 // ============================================
