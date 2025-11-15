@@ -13,7 +13,9 @@ class MessageHandler:
         """Manejar mediciones individuales del sensor"""
         device_id = message['device_id']
         payload = message['payload']
-        
+
+        print(f"🔄 Procesando mensaje sensor raw: device={device_id}, payload={payload}")
+
         try:
             temp = payload.get('temperature')
             hum = payload.get('humidity')
@@ -26,9 +28,11 @@ class MessageHandler:
                 timestamp = datetime.utcnow()
             
             async with AsyncSessionLocal() as session:
+                print(f"🔗 Conectado a la base de datos para device: {device_id}")
+
                 # Actualizar dispositivo
                 await MessageHandler._update_device_status(session, device_id, True)
-                
+
                 # Guardar medición
                 measurement = Measurement(
                     device_id=device_id,
@@ -37,8 +41,11 @@ class MessageHandler:
                     timestamp=timestamp
                 )
                 session.add(measurement)
+
+                print(f"💾 Guardando medición: {temp}°C, {hum}%")
                 await session.commit()
-                
+                print(f"✅ Medición guardada exitosamente")
+
                 print(f"📊 [{device_id}] Raw: {temp}°C, {hum}%")
         
         except Exception as e:
@@ -175,18 +182,22 @@ class MessageHandler:
     @staticmethod
     async def _update_device_status(session: AsyncSession, device_id: str, is_online: bool):
         """Actualizar estado del dispositivo"""
+        print(f"🔄 Actualizando estado del dispositivo: {device_id}, online: {is_online}")
+
         # Buscar dispositivo
         result = await session.execute(
             select(Device).where(Device.device_id == device_id)
         )
         device = result.scalar_one_or_none()
-        
+
         if device:
             # Actualizar existente
+            print(f"📝 Actualizando dispositivo existente: {device_id}")
             device.last_seen = datetime.utcnow()
             device.is_online = is_online
         else:
             # Crear nuevo
+            print(f"🆕 Creando nuevo dispositivo: {device_id}")
             device = Device(
                 device_id=device_id,
                 name=device_id,
@@ -194,8 +205,9 @@ class MessageHandler:
                 is_online=is_online
             )
             session.add(device)
-        
+
         await session.commit()
+        print(f"✅ Dispositivo actualizado: {device_id}")
 
 
 # Registrar todos los handlers

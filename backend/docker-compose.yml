@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: esp-ac-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    restart: unless-stopped
+
+  backend:
+    build: .
+    container_name: esp-ac-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DEBUG=False
+    depends_on:
+      - mqtt-broker
+    restart: unless-stopped
+    volumes:
+      - ./database.sqlite:/app/database.sqlite
+
+volumes:
+  mosquitto_data:
+  mosquitto_logs:

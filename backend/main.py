@@ -7,8 +7,7 @@ import os
 load_dotenv()
 
 from database import init_db
-from mqtt_client import init_mqtt_client
-from message_handlers import register_handlers
+from mqtt_client import init_mqtt_client, register_handlers
 from api import app
 
 async def startup():
