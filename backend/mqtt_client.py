@@ -98,7 +98,7 @@ class MQTTClient:
                     'device_id': device_id,
                     'topic': topic,
                     'payload': payload,
-                    'timestamp': datetime.utcnow()
+                    'timestamp': datetime.now()
                 }
 
                 print(f"📦 Mensaje estructurado: {message}")
@@ -196,7 +196,7 @@ class MQTTClient:
         topic = f"{device_id}/ac/command"
         payload = {
             "action": action,
-            "timestamp": int(datetime.utcnow().timestamp())
+            "timestamp": int(datetime.now().timestamp())
         }
         return self.publish(topic, payload)
 
@@ -207,7 +207,7 @@ class MQTTClient:
             "r": r,
             "g": g,
             "b": b,
-            "timestamp": int(datetime.utcnow().timestamp())
+            "timestamp": int(datetime.now().timestamp())
         }
         return self.publish(topic, payload)
 
@@ -217,7 +217,7 @@ class MQTTClient:
         payload = {
             "sample_interval": sample_interval,
             "avg_samples": avg_samples,
-            "timestamp": int(datetime.utcnow().timestamp())
+            "timestamp": int(datetime.now().timestamp())
         }
         return self.publish(topic, payload)
 
@@ -226,7 +226,7 @@ class MQTTClient:
         topic = f"{device_id}/system/command"
         payload = {
             "action": "reboot",
-            "timestamp": int(datetime.utcnow().timestamp())
+            "timestamp": int(datetime.now().timestamp())
         }
         return self.publish(topic, payload)
 

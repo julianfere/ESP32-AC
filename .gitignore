@@ -6,5 +6,5 @@
 backend/.env
 backend/database.sqlite
 backend/.env
-backend/database.*
+backend/data/*
 backend/__pycache__/*

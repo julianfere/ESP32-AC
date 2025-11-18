@@ -857,8 +857,8 @@ const App = () => {
     }, []);
 
     // Prepare chart data
-    const tempChartData = measurements.map(m => ({ timestamp: m.timestamp, value: m.temperature }));
-    const humidityChartData = measurements.map(m => ({ timestamp: m.timestamp, value: m.humidity }));
+    const tempChartData = measurements.map(m => ({ timestamp: m.timestamp, value: parseInt(m.temperature) }));
+    const humidityChartData = measurements.map(m => ({ timestamp: m.timestamp, value: parseInt(m.humidity) }));
 
     // Get gradient class for AC card
     const acCardGradient = acStatus === 'on' ? 'from-blue-500 to-cyan-600' : 'from-gray-600 to-gray-700';

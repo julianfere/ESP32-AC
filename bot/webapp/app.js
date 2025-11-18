@@ -227,7 +227,7 @@ async function loadChartData(period = 'day') {
             return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         });
 
-        const temperatures = res.measurements.map(m => m.temperature);
+        const temperatures = res.measurements.map(m => parseInt(m.temperature));
 
         updateChart(labels, temperatures);
     } catch (error) {

@@ -181,7 +181,7 @@ async def get_averages(
     session: AsyncSession = Depends(get_session)
 ):
     """Obtener promedios de las últimas N horas"""
-    since = datetime.utcnow() - timedelta(hours=hours)
+    since = datetime.now() - timedelta(hours=hours)
     
     result = await session.execute(
         select(MeasurementAverage)
@@ -214,7 +214,7 @@ async def get_device_stats(
     session: AsyncSession = Depends(get_session)
 ):
     """Obtener estadísticas del dispositivo"""
-    since = datetime.utcnow() - timedelta(hours=hours)
+    since = datetime.now() - timedelta(hours=hours)
     
     # Estadísticas de temperatura
     temp_stats = await session.execute(
@@ -279,7 +279,7 @@ async def send_ac_command(
         device_id=device_id,
         action=command.action,
         triggered_by='manual',
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now()
     )
     session.add(ac_event)
     await session.commit()
@@ -505,7 +505,7 @@ async def get_sleep_timers(
     )
     timers = result.scalars().all()
 
-    now = datetime.utcnow()
+    now = datetime.now()
 
     return {
         "device_id": device_id,
@@ -534,7 +534,7 @@ async def create_sleep_timer(
     if timer.delay_minutes < 1 or timer.delay_minutes > 1440:  # Máximo 24 horas
         raise HTTPException(status_code=400, detail="Delay must be between 1 and 1440 minutes")
 
-    execute_at = datetime.utcnow() + timedelta(minutes=timer.delay_minutes)
+    execute_at = datetime.now() + timedelta(minutes=timer.delay_minutes)
 
     new_timer = SleepTimer(
         device_id=device_id,
@@ -590,7 +590,7 @@ async def health_check():
         "status": "healthy",
         "mqtt_connected": mqtt.connected if mqtt else False,
         "scheduler_running": scheduler.running if scheduler else False,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now().isoformat()
     }
 
 @app.get("/")

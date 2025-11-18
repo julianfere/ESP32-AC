@@ -19,13 +19,13 @@ class MessageHandler:
         try:
             temp = payload.get('temperature')
             hum = payload.get('humidity')
-            timestamp_raw = payload.get('timestamp', int(datetime.utcnow().timestamp()))
+            timestamp_raw = payload.get('timestamp', int(datetime.now().timestamp()))
             
             # Convertir timestamp a datetime
             if isinstance(timestamp_raw, int):
                 timestamp = datetime.fromtimestamp(timestamp_raw)
             else:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now()
             
             async with AsyncSessionLocal() as session:
                 print(f"🔗 Conectado a la base de datos para device: {device_id}")
@@ -61,12 +61,12 @@ class MessageHandler:
             avg_temp = payload.get('temp')
             avg_hum = payload.get('hum')
             samples = payload.get('samples', 0)
-            timestamp_raw = payload.get('timestamp', int(datetime.utcnow().timestamp()))
+            timestamp_raw = payload.get('timestamp', int(datetime.now().timestamp()))
             
             if isinstance(timestamp_raw, int):
                 timestamp = datetime.fromtimestamp(timestamp_raw)
             else:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now()
             
             async with AsyncSessionLocal() as session:
                 # Calcular período (asumir 5 minutos atrás)
@@ -98,12 +98,12 @@ class MessageHandler:
         try:
             state = payload.get('state')  # 'on' or 'off'
             confirmed = payload.get('confirmed', False)
-            timestamp_raw = payload.get('timestamp', int(datetime.utcnow().timestamp()))
+            timestamp_raw = payload.get('timestamp', int(datetime.now().timestamp()))
             
             if isinstance(timestamp_raw, int):
                 timestamp = datetime.fromtimestamp(timestamp_raw)
             else:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now()
             
             async with AsyncSessionLocal() as session:
                 # Guardar evento
@@ -193,7 +193,7 @@ class MessageHandler:
         if device:
             # Actualizar existente
             print(f"📝 Actualizando dispositivo existente: {device_id}")
-            device.last_seen = datetime.utcnow()
+            device.last_seen = datetime.now()
             device.is_online = is_online
         else:
             # Crear nuevo
@@ -201,7 +201,7 @@ class MessageHandler:
             device = Device(
                 device_id=device_id,
                 name=device_id,
-                last_seen=datetime.utcnow(),
+                last_seen=datetime.now(),
                 is_online=is_online
             )
             session.add(device)

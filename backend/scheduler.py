@@ -138,7 +138,7 @@ class SchedulerService:
             device_id=schedule.device_id,
             action=schedule.action,
             triggered_by=f'schedule:{schedule.id}',
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now()
         )
         session.add(ac_event)
         await session.commit()
@@ -147,7 +147,7 @@ class SchedulerService:
 
     async def _check_and_execute_sleep_timers(self):
         """Revisar y ejecutar sleep timers que ya deben ejecutarse"""
-        now = datetime.utcnow()
+        now = datetime.now()
 
         async with AsyncSessionLocal() as session:
             # Obtener todos los sleep timers pendientes que ya deberían ejecutarse
@@ -197,7 +197,7 @@ class SchedulerService:
             device_id=timer.device_id,
             action=timer.action,
             triggered_by=f'sleep_timer:{timer.id}',
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now()
         )
         session.add(ac_event)
         await session.commit()
