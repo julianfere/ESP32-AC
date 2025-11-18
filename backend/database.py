@@ -4,6 +4,7 @@ from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, Index
 from datetime import datetime
 from typing import Optional
 import os
+from utils import now_argentina
 
 # Database URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./database.sqlite")
@@ -37,12 +38,12 @@ class Device(Base):
 
 class Measurement(Base):
     __tablename__ = "measurements"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     device_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     temperature: Mapped[float] = mapped_column(Float, nullable=False)
     humidity: Mapped[float] = mapped_column(Float, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=now_argentina, index=True)
     
     __table_args__ = (
         Index('idx_device_timestamp', 'device_id', 'timestamp'),
@@ -69,12 +70,12 @@ class MeasurementAverage(Base):
 
 class AcEvent(Base):
     __tablename__ = "ac_events"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     device_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     action: Mapped[str] = mapped_column(String(10), nullable=False)  # 'on' or 'off'
     triggered_by: Mapped[Optional[str]] = mapped_column(String(50))  # 'manual', 'scheduled', 'automation'
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=now_argentina, index=True)
     
     def __repr__(self):
         return f"<AcEvent(device_id='{self.device_id}', action='{self.action}')>"
@@ -113,7 +114,7 @@ class SleepTimer(Base):
     device_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     action: Mapped[str] = mapped_column(String(10), nullable=False)  # 'on' or 'off'
     execute_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_argentina)
     is_executed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def __repr__(self):

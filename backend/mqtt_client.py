@@ -4,6 +4,7 @@ import asyncio
 import os
 from typing import Callable, Dict, Any
 from datetime import datetime
+from utils import now_argentina
 
 class MQTTClient:
     """Cliente MQTT para comunicación con dispositivos ESP32"""
@@ -98,7 +99,7 @@ class MQTTClient:
                     'device_id': device_id,
                     'topic': topic,
                     'payload': payload,
-                    'timestamp': datetime.now()
+                    'timestamp': now_argentina()
                 }
 
                 print(f"📦 Mensaje estructurado: {message}")
@@ -196,7 +197,7 @@ class MQTTClient:
         topic = f"{device_id}/ac/command"
         payload = {
             "action": action,
-            "timestamp": int(datetime.now().timestamp())
+            "timestamp": int(now_argentina().timestamp())
         }
         return self.publish(topic, payload)
 
@@ -207,7 +208,7 @@ class MQTTClient:
             "r": r,
             "g": g,
             "b": b,
-            "timestamp": int(datetime.now().timestamp())
+            "timestamp": int(now_argentina().timestamp())
         }
         return self.publish(topic, payload)
 
@@ -217,7 +218,7 @@ class MQTTClient:
         payload = {
             "sample_interval": sample_interval,
             "avg_samples": avg_samples,
-            "timestamp": int(datetime.now().timestamp())
+            "timestamp": int(now_argentina().timestamp())
         }
         return self.publish(topic, payload)
 
@@ -226,7 +227,7 @@ class MQTTClient:
         topic = f"{device_id}/system/command"
         payload = {
             "action": "reboot",
-            "timestamp": int(datetime.now().timestamp())
+            "timestamp": int(now_argentina().timestamp())
         }
         return self.publish(topic, payload)
 

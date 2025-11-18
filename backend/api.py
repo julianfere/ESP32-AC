@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timedelta
 from pathlib import Path
+from utils import now_argentina
 
 app = FastAPI(title="Sistema de Clima Inteligente API", version="1.0.0")
 
@@ -181,7 +182,7 @@ async def get_averages(
     session: AsyncSession = Depends(get_session)
 ):
     """Obtener promedios de las últimas N horas"""
-    since = datetime.now() - timedelta(hours=hours)
+    since = now_argentina() - timedelta(hours=hours)
     
     result = await session.execute(
         select(MeasurementAverage)
@@ -214,7 +215,7 @@ async def get_device_stats(
     session: AsyncSession = Depends(get_session)
 ):
     """Obtener estadísticas del dispositivo"""
-    since = datetime.now() - timedelta(hours=hours)
+    since = now_argentina() - timedelta(hours=hours)
     
     # Estadísticas de temperatura
     temp_stats = await session.execute(
@@ -279,7 +280,7 @@ async def send_ac_command(
         device_id=device_id,
         action=command.action,
         triggered_by='manual',
-        timestamp=datetime.now()
+        timestamp=now_argentina()
     )
     session.add(ac_event)
     await session.commit()
@@ -505,7 +506,7 @@ async def get_sleep_timers(
     )
     timers = result.scalars().all()
 
-    now = datetime.now()
+    now = now_argentina()
 
     return {
         "device_id": device_id,
@@ -534,7 +535,7 @@ async def create_sleep_timer(
     if timer.delay_minutes < 1 or timer.delay_minutes > 1440:  # Máximo 24 horas
         raise HTTPException(status_code=400, detail="Delay must be between 1 and 1440 minutes")
 
-    execute_at = datetime.now() + timedelta(minutes=timer.delay_minutes)
+    execute_at = now_argentina() + timedelta(minutes=timer.delay_minutes)
 
     new_timer = SleepTimer(
         device_id=device_id,
@@ -590,7 +591,7 @@ async def health_check():
         "status": "healthy",
         "mqtt_connected": mqtt.connected if mqtt else False,
         "scheduler_running": scheduler.running if scheduler else False,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": now_argentina().isoformat()
     }
 
 @app.get("/")

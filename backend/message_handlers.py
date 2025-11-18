@@ -4,6 +4,7 @@ from database import Device, Measurement, MeasurementAverage, AcEvent, AsyncSess
 from datetime import datetime
 from typing import Dict, Any
 import json
+from utils import now_argentina, from_timestamp_argentina
 
 class MessageHandler:
     """Manejador de mensajes MQTT"""
@@ -19,13 +20,13 @@ class MessageHandler:
         try:
             temp = payload.get('temperature')
             hum = payload.get('humidity')
-            timestamp_raw = payload.get('timestamp', int(datetime.now().timestamp()))
-            
-            # Convertir timestamp a datetime
+            timestamp_raw = payload.get('timestamp', int(now_argentina().timestamp()))
+
+            # Convertir timestamp a datetime en timezone de Argentina
             if isinstance(timestamp_raw, int):
-                timestamp = datetime.fromtimestamp(timestamp_raw)
+                timestamp = from_timestamp_argentina(timestamp_raw)
             else:
-                timestamp = datetime.now()
+                timestamp = now_argentina()
             
             async with AsyncSessionLocal() as session:
                 print(f"🔗 Conectado a la base de datos para device: {device_id}")
@@ -61,12 +62,12 @@ class MessageHandler:
             avg_temp = payload.get('temp')
             avg_hum = payload.get('hum')
             samples = payload.get('samples', 0)
-            timestamp_raw = payload.get('timestamp', int(datetime.now().timestamp()))
-            
+            timestamp_raw = payload.get('timestamp', int(now_argentina().timestamp()))
+
             if isinstance(timestamp_raw, int):
-                timestamp = datetime.fromtimestamp(timestamp_raw)
+                timestamp = from_timestamp_argentina(timestamp_raw)
             else:
-                timestamp = datetime.now()
+                timestamp = now_argentina()
             
             async with AsyncSessionLocal() as session:
                 # Calcular período (asumir 5 minutos atrás)
@@ -98,12 +99,12 @@ class MessageHandler:
         try:
             state = payload.get('state')  # 'on' or 'off'
             confirmed = payload.get('confirmed', False)
-            timestamp_raw = payload.get('timestamp', int(datetime.now().timestamp()))
-            
+            timestamp_raw = payload.get('timestamp', int(now_argentina().timestamp()))
+
             if isinstance(timestamp_raw, int):
-                timestamp = datetime.fromtimestamp(timestamp_raw)
+                timestamp = from_timestamp_argentina(timestamp_raw)
             else:
-                timestamp = datetime.now()
+                timestamp = now_argentina()
             
             async with AsyncSessionLocal() as session:
                 # Guardar evento
@@ -193,7 +194,7 @@ class MessageHandler:
         if device:
             # Actualizar existente
             print(f"📝 Actualizando dispositivo existente: {device_id}")
-            device.last_seen = datetime.now()
+            device.last_seen = now_argentina()
             device.is_online = is_online
         else:
             # Crear nuevo
@@ -201,7 +202,7 @@ class MessageHandler:
             device = Device(
                 device_id=device_id,
                 name=device_id,
-                last_seen=datetime.now(),
+                last_seen=now_argentina(),
                 is_online=is_online
             )
             session.add(device)

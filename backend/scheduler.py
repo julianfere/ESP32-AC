@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import AsyncSessionLocal, Schedule, AcEvent, SleepTimer
 from mqtt_client import get_mqtt_client
+from utils import now_argentina
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -63,8 +64,8 @@ class SchedulerService:
 
     async def _check_and_execute_schedules(self):
         """Revisar y ejecutar schedules que correspondan ahora"""
-        # Usar datetime.now() para hora local del servidor
-        now = datetime.now()
+        # Usar timezone de Argentina
+        now = now_argentina()
         current_time = now.strftime("%H:%M")
         current_weekday = now.isoweekday()  # 1=Lunes, 7=Domingo
         current_date = now.date()
@@ -138,7 +139,7 @@ class SchedulerService:
             device_id=schedule.device_id,
             action=schedule.action,
             triggered_by=f'schedule:{schedule.id}',
-            timestamp=datetime.now()
+            timestamp=now_argentina()
         )
         session.add(ac_event)
         await session.commit()
@@ -147,7 +148,7 @@ class SchedulerService:
 
     async def _check_and_execute_sleep_timers(self):
         """Revisar y ejecutar sleep timers que ya deben ejecutarse"""
-        now = datetime.now()
+        now = now_argentina()
 
         async with AsyncSessionLocal() as session:
             # Obtener todos los sleep timers pendientes que ya deberían ejecutarse
@@ -197,7 +198,7 @@ class SchedulerService:
             device_id=timer.device_id,
             action=timer.action,
             triggered_by=f'sleep_timer:{timer.id}',
-            timestamp=datetime.now()
+            timestamp=now_argentina()
         )
         session.add(ac_event)
         await session.commit()
