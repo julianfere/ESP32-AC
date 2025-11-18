@@ -1,0 +1,15 @@
+# ESP-AC Backend dependencies
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+paho-mqtt>=2.1.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.1
+apscheduler>=3.10.4
+sqlalchemy>=2.0.36
+aiosqlite>=0.20.0
+
+# Telegram Bot dependencies
+python-telegram-bot[webhooks]>=21.0
+aiohttp>=3.9.0
+aiohttp-cors>=0.7.0

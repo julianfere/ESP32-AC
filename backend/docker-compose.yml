@@ -12,6 +12,8 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_logs:/mosquitto/log
     restart: unless-stopped
+    networks:
+      - esp-ac-network
 
   backend:
     build: .
@@ -34,6 +36,37 @@ services:
       - ./data:/app/data
       - ../frontend:/app/frontend:ro
       - /etc/localtime:/etc/localtime:ro
+    networks:
+      - esp-ac-network
+
+  telegram-bot:
+    build:
+      context: ..
+      dockerfile: Dockerfile.telegram
+    container_name: esp-ac-telegram-bot
+    ports:
+      - "8443:8443" 
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_USER_ID=${TELEGRAM_USER_ID}
+      - BACKEND_API_URL=http://backend:8000
+      - DEFAULT_DEVICE_ID=${DEFAULT_DEVICE_ID:-ESP32-001}
+      - ALERT_CHECK_INTERVAL=${ALERT_CHECK_INTERVAL:-300}
+      - WEBAPP_URL=${WEBAPP_URL}
+      - TZ=America/Argentina/Buenos_Aires
+    depends_on:
+      - backend
+    restart: unless-stopped
+    volumes:
+      - ../telegram_bot.py:/app/telegram_bot.py
+      - ../bot:/app/bot
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - esp-ac-network
+
+networks:
+  esp-ac-network:
+    driver: bridge
 
 volumes:
   mosquitto_data:
