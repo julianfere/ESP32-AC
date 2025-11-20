@@ -63,6 +63,7 @@ class LedCommandRequest(BaseModel):
     r: int
     g: int
     b: int
+    enabled: bool
 
 class ConfigUpdateRequest(BaseModel):
     sample_interval: int  # en segundos
@@ -356,7 +357,7 @@ async def send_led_command(device_id: str, command: LedCommandRequest):
     if not (0 <= command.r <= 255 and 0 <= command.g <= 255 and 0 <= command.b <= 255):
         raise HTTPException(status_code=400, detail="RGB values must be 0-255")
     
-    success = mqtt.send_led_command(device_id, command.r, command.g, command.b)
+    success = mqtt.send_led_command(device_id, command.r, command.g, command.b, command.enabled)
     
     if not success:
         raise HTTPException(status_code=503, detail="Failed to send MQTT command")

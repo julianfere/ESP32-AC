@@ -201,13 +201,14 @@ class MQTTClient:
         }
         return self.publish(topic, payload)
 
-    def send_led_command(self, device_id: str, r: int, g: int, b: int) -> bool:
+    def send_led_command(self, device_id: str, r: int, g: int, b: int, enabled: bool) -> bool:
         """Enviar comando de LED"""
         topic = f"{device_id}/led/command"
         payload = {
             "r": r,
             "g": g,
             "b": b,
+            "enabled": enabled,
             "timestamp": int(now_argentina().timestamp())
         }
         return self.publish(topic, payload)

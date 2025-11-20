@@ -128,12 +128,13 @@ class MessageHandler:
         device_id = message['device_id']
         payload = message['payload']
         
-        try:
+        try:    
             r = payload.get('r', 0)
             g = payload.get('g', 0)
             b = payload.get('b', 0)
+            enabled = payload.get('enabled', True)
             
-            print(f"💡 [{device_id}] LED: RGB({r}, {g}, {b})")
+            print(f"💡 [{device_id}] LED: RGB({r}, {g}, {b}), Enabled: {enabled}")
             # Aquí podrías guardar en DB si quieres histórico de colores
         
         except Exception as e:
