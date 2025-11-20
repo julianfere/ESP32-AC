@@ -17,6 +17,7 @@ private:
   uint8_t currentR;
   uint8_t currentG;
   uint8_t currentB;
+  bool enabledFeedback = true;
 
   static const uint16_t PWM_FREQ = 5000;
   static const uint8_t PWM_RESOLUTION = 8;
@@ -46,8 +47,16 @@ public:
     Serial.println("✓ LED RGB iniciado");
   }
 
+  void setEnabledFeedback(bool enabled)
+  {
+    enabledFeedback = enabled;
+  }
+
   void setColor(uint8_t red, uint8_t green, uint8_t blue)
   {
+    if (!enabledFeedback)
+      return;
+
     currentR = red;
     currentG = green;
     currentB = blue;
@@ -77,6 +86,9 @@ public:
   // Efecto de parpadeo
   void blink(uint8_t r, uint8_t g, uint8_t b, int times = 3, int delayMs = 200)
   {
+    if (!enabledFeedback)
+      return;
+
     for (int i = 0; i < times; i++)
     {
       setColor(r, g, b);

@@ -22,7 +22,7 @@ TemperatureSensor sensor(DHT_PIN);
 MqttManager mqtt(MQTT_BROKER, MQTT_PORT, DEVICE_ID);
 
 // ============================================
-// BUFFERS PARA PROMEDIOS
+#pragma region BUFFERS PARA PROMEDIOS
 // ============================================
 CircularBuffer<float, 10> tempBuffer;
 CircularBuffer<float, 10> humBuffer;
@@ -42,7 +42,7 @@ int sampleInterval = SAMPLE_INTERVAL_MS;
 int avgSamples = SAMPLES_FOR_AVERAGE;
 
 // ============================================
-// CALLBACKS MQTT
+#pragma region CALLBACKS MQTT
 // ============================================
 
 void onAcCommandReceived(bool turnOn)
@@ -79,7 +79,7 @@ void onAcCommandReceived(bool turnOn)
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 }
 
-void onLedCommandReceived(uint8_t r, uint8_t g, uint8_t b)
+void onLedCommandReceived(uint8_t r, uint8_t g, uint8_t b, bool enabled)
 {
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   Serial.print("💡 Comando LED recibido: RGB(");
@@ -90,8 +90,10 @@ void onLedCommandReceived(uint8_t r, uint8_t g, uint8_t b)
   Serial.print(b);
   Serial.println(")");
 
+  led.setEnabledFeedback(enabled);
+
   led.setColor(r, g, b);
-  mqtt.publishLedStatus(r, g, b);
+  mqtt.publishLedStatus(r, g, b, enabled);
 
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 }
@@ -117,7 +119,7 @@ void onConfigUpdateReceived(int newSampleInterval, int newAvgSamples)
 }
 
 // ============================================
-// SETUP
+#pragma region SETUP
 // ============================================
 
 void setup()
@@ -210,8 +212,7 @@ void setup()
   Serial.println();
 
   // Parpadeo verde de confirmación
-  led.blink(0, 255, 0, 3, 200);
-  led.setAzul(); // Color inicial
+  led.blink(255, 255, 255, 6, 50);
 
   // Publicar estado inicial
   unsigned long timestamp = timeClient.getEpochTime();
@@ -219,11 +220,11 @@ void setup()
 
   uint8_t r, g, b;
   led.getColor(r, g, b);
-  mqtt.publishLedStatus(r, g, b);
+  mqtt.publishLedStatus(r, g, b, true);
 }
 
 // ============================================
-// LOOP PRINCIPAL
+#pragma region LOOP PRINCIPAL
 // ============================================
 
 void loop()
@@ -260,10 +261,10 @@ void loop()
       humBuffer.push(hum);
 
       // Si completamos las muestras necesarias, enviar promedio
-      if (tempBuffer.isFull())
+      if (tempBuffer.size() >= avgSamples)
       {
-        float avgTemp = tempBuffer.average();
-        float avgHum = humBuffer.average();
+        float avgTemp = tempBuffer.average(avgSamples);
+        float avgHum = humBuffer.average(avgSamples);
 
         mqtt.publishAverage(avgTemp, avgHum, avgSamples, timestamp);
 

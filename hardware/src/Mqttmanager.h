@@ -8,7 +8,7 @@
 
 // Forward declarations para callbacks
 typedef void (*AcCommandCallback)(bool turnOn);
-typedef void (*LedCommandCallback)(uint8_t r, uint8_t g, uint8_t b);
+typedef void (*LedCommandCallback)(uint8_t r, uint8_t g, uint8_t b, bool enabled);
 typedef void (*ConfigUpdateCallback)(int sampleInterval, int avgSamples);
 
 class MqttManager
@@ -115,7 +115,8 @@ private:
         uint8_t r = doc["r"] | 0;
         uint8_t g = doc["g"] | 0;
         uint8_t b = doc["b"] | 0;
-        ledCallback(r, g, b);
+        bool enabled = doc["enabled"] | true;
+        ledCallback(r, g, b, enabled);
       }
     }
     else if (topicStr.endsWith("/config/update"))
@@ -234,7 +235,7 @@ public:
   }
 
   // Publicar estado del LED
-  void publishLedStatus(uint8_t r, uint8_t g, uint8_t b)
+  void publishLedStatus(uint8_t r, uint8_t g, uint8_t b, bool enabled)
   {
     if (!mqtt.connected())
       return;
@@ -243,6 +244,7 @@ public:
     doc["r"] = r;
     doc["g"] = g;
     doc["b"] = b;
+    doc["enabled"] = enabled;
 
     char buffer[128];
     serializeJson(doc, buffer);

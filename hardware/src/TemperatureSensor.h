@@ -8,14 +8,15 @@ class TemperatureSensor
 {
 private:
   DHT dht;
+  uint8_t pin;
   float ultimaTemperatura;
   float ultimaHumedad;
   int erroresConsecutivos;
   static const int MAX_ERRORES = 5;
 
 public:
-  TemperatureSensor(uint8_t pin, uint8_t tipo = DHT11)
-      : dht(pin, tipo), ultimaTemperatura(NAN), ultimaHumedad(NAN), erroresConsecutivos(0) {}
+  TemperatureSensor(uint8_t pin, uint8_t tipo = DHT22)
+      : dht(pin, tipo), pin(pin), ultimaTemperatura(NAN), ultimaHumedad(NAN), erroresConsecutivos(0) {}
 
   void begin()
   {

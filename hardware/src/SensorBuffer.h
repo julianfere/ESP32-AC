@@ -22,16 +22,35 @@ public:
       count++;
   }
 
-  T average() const
+  T average(int configuredCount = 0) const
   {
+
+    if (configuredCount > 0)
+      return averageConfigured(configuredCount);
+
     if (count == 0)
       return 0;
     T sum = 0;
+
     for (size_t i = 0; i < count; i++)
     {
       sum += buffer[i];
     }
     return sum / count;
+  }
+
+  T averageConfigured(int configuredCount) const
+  {
+    if (count == 0 || configuredCount <= 0)
+      return 0;
+    T sum = 0;
+    size_t elementsToConsider = (configuredCount < count) ? configuredCount : count;
+
+    for (size_t i = 0; i < elementsToConsider; i++)
+    {
+      sum += buffer[i];
+    }
+    return sum / elementsToConsider;
   }
 
   T min() const
