@@ -445,18 +445,18 @@ const LEDControlTab = ({ onSend }) => {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Rojo (0-255)</label>
-                        <input type="range" min="0" max="255" value=${r} onInput=${e => setR(parseInt(e.target.value))} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-600" />
-                        <input type="number" min="0" max="255" value=${r} onInput=${e => setR(parseInt(e.target.value))} class="mt-2 w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2" />
+                        <input type="range" min="0" max="255" value=${r} onInput=${e => setR(parseInt(e.target.value) || 0)} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-600" />
+                        <input type="number" min="0" max="255" value=${r} onInput=${e => setR(parseInt(e.target.value) || 0)} class="mt-2 w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2" />
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Verde (0-255)</label>
-                        <input type="range" min="0" max="255" value=${g} onInput=${e => setG(parseInt(e.target.value))} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-600" />
-                        <input type="number" min="0" max="255" value=${g} onInput=${e => setG(parseInt(e.target.value))} class="mt-2 w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2" />
+                        <input type="range" min="0" max="255" value=${g} onInput=${e => setG(parseInt(e.target.value) || 0)} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-600" />
+                        <input type="number" min="0" max="255" value=${g} onInput=${e => setG(parseInt(e.target.value) || 0)} class="mt-2 w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2" />
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Azul (0-255)</label>
-                        <input type="range" min="0" max="255" value=${b} onInput=${e => setB(parseInt(e.target.value))} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                        <input type="number" min="0" max="255" value=${b} onInput=${e => setB(parseInt(e.target.value))} class="mt-2 w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2" />
+                        <input type="range" min="0" max="255" value=${b} onInput=${e => setB(parseInt(e.target.value) || 0)} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        <input type="number" min="0" max="255" value=${b} onInput=${e => setB(parseInt(e.target.value) || 0)} class="mt-2 w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2" />
                     </div>
                 </div>
             </details>
