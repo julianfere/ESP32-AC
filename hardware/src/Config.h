@@ -34,7 +34,7 @@
 // NTP para sincronización de tiempo
 // ============================================
 #define NTP_SERVER "pool.ntp.org"
-#define NTP_OFFSET (-3 * 3600)    // UTC-3 (Argentina) - Cambiar según tu zona horaria
+#define NTP_OFFSET 0              // UTC
 #define NTP_UPDATE_INTERVAL 60000 // Actualizar cada minuto
 
 #endif
