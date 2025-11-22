@@ -64,7 +64,7 @@ function StatusCard({ temperature, humidity, timestamp, tempIcon }) {
         <div class="card status-card">
             <h2>📊 Estado Actual</h2>
             <div class="status-grid">
-                <div class="status-item">
+                <div class="status-item gradient-orange">
                     <span class="status-icon">${tempIcon}</span>
                     <div class="status-value">
                         <span>${temperature?.toFixed(1) || '--'}</span>
@@ -72,7 +72,7 @@ function StatusCard({ temperature, humidity, timestamp, tempIcon }) {
                     </div>
                     <span class="status-label">Temperatura</span>
                 </div>
-                <div class="status-item">
+                <div class="status-item gradient-blue">
                     <span class="status-icon">💧</span>
                     <div class="status-value">
                         <span>${humidity?.toFixed(0) || '--'}</span>

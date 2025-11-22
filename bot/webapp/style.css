@@ -256,6 +256,41 @@ h2 {
     border-radius: 12px;
 }
 
+/* Gradient cards */
+.gradient-orange {
+    background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+    color: white;
+}
+
+.gradient-blue {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    color: white;
+}
+
+.gradient-green {
+    background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+    color: white;
+}
+
+.gradient-gray {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+    color: white;
+}
+
+.status-item.gradient-orange .status-label,
+.status-item.gradient-blue .status-label,
+.status-item.gradient-green .status-label,
+.status-item.gradient-gray .status-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.status-item.gradient-orange .unit,
+.status-item.gradient-blue .unit,
+.status-item.gradient-green .unit,
+.status-item.gradient-gray .unit {
+    color: rgba(255, 255, 255, 0.8);
+}
+
 .status-icon {
     font-size: 2.5rem;
     margin-bottom: 8px;
