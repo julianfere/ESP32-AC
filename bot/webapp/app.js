@@ -3,6 +3,25 @@ const { h, render } = preact;
 const { useState, useEffect, useRef } = preactHooks;
 const html = htm.bind(h);
 
+// Lucide Icon component
+function Icon({ name, size = 24, className = '' }) {
+    const iconRef = useRef(null);
+
+    useEffect(() => {
+        if (iconRef.current && window.lucide) {
+            iconRef.current.innerHTML = '';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', name);
+            icon.style.width = `${size}px`;
+            icon.style.height = `${size}px`;
+            iconRef.current.appendChild(icon);
+            window.lucide.createIcons();
+        }
+    }, [name]);
+
+    return html`<span ref=${iconRef} class="icon ${className}" style="display: inline-flex; align-items: center; justify-content: center;"></span>`;
+}
+
 // Telegram Web App API
 const tg = window.Telegram.WebApp;
 
@@ -55,17 +74,17 @@ function Loading() {
 }
 
 // Status Card Component
-function StatusCard({ temperature, humidity, timestamp, tempIcon }) {
+function StatusCard({ temperature, humidity, timestamp }) {
     const formattedTime = timestamp
         ? parseTime(timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
         : '--';
 
     return html`
         <div class="card status-card">
-            <h2>📊 Estado Actual</h2>
+            <h2><${Icon} name="bar-chart-3" size=${20} /> Estado Actual</h2>
             <div class="status-grid">
                 <div class="status-item gradient-orange">
-                    <span class="status-icon">${tempIcon}</span>
+                    <span class="status-icon"><${Icon} name="thermometer" size=${32} /></span>
                     <div class="status-value">
                         <span>${temperature?.toFixed(1) || '--'}</span>
                         <span class="unit">°C</span>
@@ -73,7 +92,7 @@ function StatusCard({ temperature, humidity, timestamp, tempIcon }) {
                     <span class="status-label">Temperatura</span>
                 </div>
                 <div class="status-item gradient-blue">
-                    <span class="status-icon">💧</span>
+                    <span class="status-icon"><${Icon} name="droplets" size=${32} /></span>
                     <div class="status-value">
                         <span>${humidity?.toFixed(0) || '--'}</span>
                         <span class="unit">%</span>
@@ -92,7 +111,7 @@ function StatusCard({ temperature, humidity, timestamp, tempIcon }) {
 function ACControlCard({ acStatus, onAcCommand, onTimer }) {
     return html`
         <div class="card ac-control-card">
-            <h2>❄️ Control de Aire Acondicionado</h2>
+            <h2><${Icon} name="snowflake" size=${20} /> Control de Aire Acondicionado</h2>
             <div class="ac-status">
                 <span class="ac-status-label">Estado:</span>
                 <span class="ac-status-value ${acStatus}">
@@ -100,17 +119,17 @@ function ACControlCard({ acStatus, onAcCommand, onTimer }) {
                 </span>
             </div>
             <div class="ac-buttons">
-                <button class="btn btn-primary btn-large" onClick=${() => onAcCommand('on')}>
-                    <span class="btn-icon">❄️</span>
+                <button class="btn btn-cool btn-large" onClick=${() => onAcCommand('on')}>
+                    <span class="btn-icon"><${Icon} name="power" size=${20} /></span>
                     ENCENDER
                 </button>
-                <button class="btn btn-secondary btn-large" onClick=${() => onAcCommand('off')}>
-                    <span class="btn-icon">🔥</span>
+                <button class="btn btn-warm btn-large" onClick=${() => onAcCommand('off')}>
+                    <span class="btn-icon"><${Icon} name="power-off" size=${20} /></span>
                     APAGAR
                 </button>
             </div>
             <div class="quick-timer">
-                <label>⏱️ Apagar en:</label>
+                <label><${Icon} name="timer" size=${16} /> Apagar en:</label>
                 <div class="timer-buttons">
                     <button class="btn btn-timer" onClick=${() => onTimer(30)}>30 min</button>
                     <button class="btn btn-timer" onClick=${() => onTimer(60)}>1 hora</button>
@@ -252,7 +271,7 @@ function ChartCard({ period, onPeriodChange }) {
 
     return html`
         <div class="card chart-card">
-            <h2>📈 Historial de Temperatura</h2>
+            <h2><${Icon} name="trending-up" size=${20} /> Historial de Temperatura</h2>
             <div class="chart-container">
                 <canvas ref=${chartRef}></canvas>
             </div>
@@ -275,7 +294,7 @@ function SchedulesCard({ schedules, onAdd, onDelete }) {
     return html`
         <div class="card schedules-card">
             <div class="card-header">
-                <h2>🕐 Programaciones</h2>
+                <h2><${Icon} name="clock" size=${20} /> Programaciones</h2>
                 <button class="btn btn-small btn-primary" onClick=${onAdd}>+ Agregar</button>
             </div>
             <div class="schedules-list">
@@ -413,7 +432,7 @@ function AlertsCard({ showToast }) {
 
     return html`
         <div class="card alerts-card">
-            <h2>🔔 Alertas de Temperatura</h2>
+            <h2><${Icon} name="bell" size=${20} /> Alertas de Temperatura</h2>
             <div class="alert-toggle">
                 <label class="switch">
                     <input type="checkbox" checked=${enabled} onChange=${e => setEnabled(e.target.checked)} />
@@ -424,12 +443,12 @@ function AlertsCard({ showToast }) {
             ${enabled && html`
                 <div class="alert-settings">
                     <div class="input-group">
-                        <label>🔥 Temperatura Alta (°C):</label>
+                        <label><${Icon} name="thermometer-sun" size=${16} /> Temperatura Alta (°C):</label>
                         <input type="number" min="20" max="40" step="0.5"
                             value=${high} onInput=${e => setHigh(parseFloat(e.target.value))} />
                     </div>
                     <div class="input-group">
-                        <label>🥶 Temperatura Baja (°C):</label>
+                        <label><${Icon} name="thermometer-snowflake" size=${16} /> Temperatura Baja (°C):</label>
                         <input type="number" min="10" max="30" step="0.5"
                             value=${low} onInput=${e => setLow(parseFloat(e.target.value))} />
                     </div>
@@ -444,7 +463,7 @@ function AlertsCard({ showToast }) {
 function StatsCard({ stats }) {
     return html`
         <div class="card stats-card">
-            <h2>📊 Estadísticas</h2>
+            <h2><${Icon} name="pie-chart" size=${20} /> Estadísticas</h2>
             <div class="stats-grid">
                 <div class="stat-item">
                     <span class="stat-label">Temp. Mínima</span>
@@ -483,13 +502,6 @@ function App() {
     function showToast(message, type = 'info') {
         setToast({ message, type, visible: true });
         setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
-    }
-
-    function getTempIcon(temp) {
-        if (temp === null) return '🌡️';
-        if (temp < 20) return '🥶';
-        if (temp < 26) return '🌡️';
-        return '🔥';
     }
 
     async function loadCurrentStatus() {
@@ -623,7 +635,6 @@ function App() {
                 temperature=${temperature}
                 humidity=${humidity}
                 timestamp=${timestamp}
-                tempIcon=${getTempIcon(temperature)}
             />
             <${ACControlCard}
                 acStatus=${acStatus}

@@ -4,6 +4,25 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+// Lucide Icon component
+function Icon({ name, size = 24, className = '' }) {
+    const iconRef = useRef(null);
+
+    useEffect(() => {
+        if (iconRef.current && window.lucide) {
+            iconRef.current.innerHTML = '';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', name);
+            icon.style.width = `${size}px`;
+            icon.style.height = `${size}px`;
+            iconRef.current.appendChild(icon);
+            window.lucide.createIcons();
+        }
+    }, [name]);
+
+    return html`<span ref=${iconRef} class="icon ${className}" style="display: inline-flex; align-items: center; justify-content: center;"></span>`;
+}
+
 
 // Configuración
 const API_BASE_URL = window.location.protocol + '//' + window.location.host;
@@ -47,7 +66,7 @@ const Toast = ({ message, type, onClose }) => {
 // COMPONENTE: Dashboard Card
 // ============================================
 
-const DashboardCard = ({ title, value, gradient, icon }) => {
+const DashboardCard = ({ title, value, gradient, iconName }) => {
     return html`
         <div class="bg-gradient-to-br ${gradient} rounded-xl shadow-xl p-6">
             <div class="flex items-center justify-between">
@@ -55,9 +74,7 @@ const DashboardCard = ({ title, value, gradient, icon }) => {
                     <p class="text-white text-sm font-medium opacity-90">${title}</p>
                     <p class="text-white text-3xl font-bold mt-1">${value}</p>
                 </div>
-                <svg class="w-12 h-12 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    ${icon}
-                </svg>
+                <span class="text-white opacity-80"><${Icon} name=${iconName} size=${48} /></span>
             </div>
         </div>
     `;
@@ -173,9 +190,7 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
         <div class="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                    </svg>
+                    <span class="mr-2 text-primary-500"><${Icon} name="trending-up" size=${20} /></span>
                     Histórico de Temperatura y Humedad
                 </h3>
                 <div class="flex gap-2">
@@ -985,9 +1000,7 @@ const App = () => {
                             onClick=${loadData}
                             class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center space-x-2"
                         >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
+                            <${Icon} name="refresh-cw" size=${20} />
                             <span>Actualizar</span>
                         </button>
                     </div>
@@ -1025,25 +1038,25 @@ const App = () => {
         title: 'Temperatura',
         value: latestData ? `${latestData.temperature.toFixed(1)}°C` : '--°C',
         gradient: 'from-orange-500 to-red-600',
-        icon: html`<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>`
+        iconName: 'thermometer'
     })}
                     ${DashboardCard({
         title: 'Humedad',
         value: latestData ? `${latestData.humidity.toFixed(1)}%` : '--%',
         gradient: 'from-blue-500 to-cyan-600',
-        icon: html`<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>`
+        iconName: 'droplets'
     })}
                     ${DashboardCard({
         title: 'Aire Acondicionado',
         value: acCardValue,
         gradient: acCardGradient,
-        icon: html`<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>`
+        iconName: 'snowflake'
     })}
                     ${DashboardCard({
         title: 'Estado',
         value: deviceValue,
         gradient: deviceGradient,
-        icon: html`<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>`
+        iconName: 'shield-check'
     })}
                 </div>
 

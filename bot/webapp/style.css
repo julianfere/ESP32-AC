@@ -422,6 +422,24 @@ h2 {
     background: #16a34a;
 }
 
+.btn-cool {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    color: white;
+}
+
+.btn-cool:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
+}
+
+.btn-warm {
+    background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+    color: white;
+}
+
+.btn-warm:hover {
+    background: linear-gradient(135deg, #ea580c 0%, #b91c1c 100%);
+}
+
 .btn-timer {
     background: var(--tg-theme-secondary-bg-color);
     color: var(--tg-theme-text-color);
