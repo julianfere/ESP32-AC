@@ -12,17 +12,6 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-    <!-- Preact + HTM + Hooks desde CDN -->
-    <script type="module">
-        import { render, h } from 'https://esm.sh/preact@10.19.3';
-        import { useState, useEffect, useRef } from 'https://esm.sh/preact@10.19.3/hooks';
-        import htm from 'https://esm.sh/htm@3.1.1';
-
-        const html = htm.bind(h);
-
-        // Hacer disponibles globalmente para los componentes
-        window.preact = { render, h, useState, useEffect, useRef, html };
-    </script>
 
     <!-- Configuración de Tailwind -->
     <script>

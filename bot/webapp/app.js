@@ -1,92 +1,18 @@
-// ESP-AC Mini App JavaScript
+// ESP-AC Mini App - Preact Version
+const { h, render } = preact;
+const { useState, useEffect, useRef } = preactHooks;
+const html = htm.bind(h);
 
 // Telegram Web App API
 const tg = window.Telegram.WebApp;
 
 // Configuration
-const API_BASE_URL = '/api';  // Proxy through bot server
-const DEFAULT_DEVICE_ID = 'room_01';  // Will be loaded from config
-let deviceId = DEFAULT_DEVICE_ID;
+const API_BASE_URL = '/api';
+const DEFAULT_DEVICE_ID = 'room_01';
+const deviceId = DEFAULT_DEVICE_ID;
 
-// Chart instance
-let tempChart = null;
-
-// State
-let currentData = {
-    temperature: null,
-    humidity: null,
-    acStatus: null,
-    timestamp: null,
-};
-
-// Utility function to parse UTC timestamps
-function parseUTCTimestamp(timestamp) {
-    // Ensure timestamp has 'Z' suffix for proper UTC parsing
-    const utcTimestamp = timestamp.includes('Z') ? timestamp : timestamp + 'Z';
-    return new Date(utcTimestamp);
-}
-
-// Initialize
-document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Telegram Web App
-    tg.ready();
-    tg.expand();
-
-    // Setup event listeners
-    setupEventListeners();
-
-    // Load initial data
-    await loadAllData();
-
-    // Hide loading, show dashboard
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-
-    // Auto refresh every 30 seconds
-    setInterval(refreshData, 30000);
-});
-
-// Setup Event Listeners
-function setupEventListeners() {
-    // AC Control
-    document.getElementById('ac-on-btn').addEventListener('click', () => sendAcCommand('on'));
-    document.getElementById('ac-off-btn').addEventListener('click', () => sendAcCommand('off'));
-
-    // Timer buttons
-    document.querySelectorAll('.btn-timer').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const minutes = parseInt(e.target.dataset.minutes);
-            createSleepTimer(minutes);
-        });
-    });
-
-    // Chart period buttons
-    document.querySelectorAll('.chart-controls .btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.chart-controls .btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            const period = e.target.dataset.period;
-            loadChartData(period);
-        });
-    });
-
-    // Schedule buttons
-    document.getElementById('add-schedule-btn').addEventListener('click', openScheduleModal);
-    document.getElementById('close-schedule-modal').addEventListener('click', closeScheduleModal);
-    document.getElementById('cancel-schedule-btn').addEventListener('click', closeScheduleModal);
-    document.getElementById('save-schedule-btn').addEventListener('click', saveSchedule);
-
-    // Alerts
-    document.getElementById('alerts-enabled').addEventListener('change', (e) => {
-        const settings = document.getElementById('alert-settings');
-        if (e.target.checked) {
-            settings.classList.remove('hidden');
-        } else {
-            settings.classList.add('hidden');
-        }
-    });
-
-    document.getElementById('save-alerts-btn').addEventListener('click', saveAlertSettings);
+function parseTime(timestamp) {
+    return new Date(timestamp);
 }
 
 // API Functions
@@ -108,361 +34,618 @@ async function apiRequest(endpoint, options = {}) {
         return await response.json();
     } catch (error) {
         console.error('API Request failed:', error);
-        showToast(error.message, 'error');
         throw error;
     }
 }
 
-async function loadAllData() {
-    try {
-        await Promise.all([
-            loadCurrentStatus(),
-            loadStats(),
-            loadSchedules(),
-            loadChartData('day'),
-        ]);
-    } catch (error) {
-        console.error('Failed to load data:', error);
-    }
+// Toast Component
+function Toast({ message, type, visible }) {
+    if (!visible) return null;
+    return html`<div class="toast ${type}">${message}</div>`;
 }
 
-async function refreshData() {
-    try {
-        await Promise.all([
-            loadCurrentStatus(),
-            loadStats(),
-        ]);
-    } catch (error) {
-        console.error('Failed to refresh data:', error);
-    }
+// Loading Component
+function Loading() {
+    return html`
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando datos...</p>
+        </div>
+    `;
 }
 
-async function loadCurrentStatus() {
-    try {
-        const [latest, acStatus] = await Promise.all([
-            apiRequest(`/device/${deviceId}/measurements/latest`),
-            apiRequest(`/device/${deviceId}/ac/status`),
-        ]);
+// Status Card Component
+function StatusCard({ temperature, humidity, timestamp, tempIcon }) {
+    const formattedTime = timestamp
+        ? parseTime(timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        : '--';
 
-        currentData.temperature = latest.temperature;
-        currentData.humidity = latest.humidity;
-        currentData.timestamp = latest.timestamp;
-        currentData.acStatus = acStatus.current_status;
-
-        updateStatusDisplay();
-    } catch (error) {
-        console.error('Failed to load status:', error);
-    }
+    return html`
+        <div class="card status-card">
+            <h2>📊 Estado Actual</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <span class="status-icon">${tempIcon}</span>
+                    <div class="status-value">
+                        <span>${temperature?.toFixed(1) || '--'}</span>
+                        <span class="unit">°C</span>
+                    </div>
+                    <span class="status-label">Temperatura</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">💧</span>
+                    <div class="status-value">
+                        <span>${humidity?.toFixed(0) || '--'}</span>
+                        <span class="unit">%</span>
+                    </div>
+                    <span class="status-label">Humedad</span>
+                </div>
+            </div>
+            <div class="last-update">
+                Última actualización: <span>${formattedTime}</span>
+            </div>
+        </div>
+    `;
 }
 
-function updateStatusDisplay() {
-    // Temperature
-    const tempEl = document.getElementById('temperature');
-    const tempIconEl = document.getElementById('temp-icon');
-    tempEl.textContent = currentData.temperature?.toFixed(1) || '--';
-
-    // Temperature icon based on value
-    if (currentData.temperature !== null) {
-        if (currentData.temperature < 20) {
-            tempIconEl.textContent = '🥶';
-        } else if (currentData.temperature < 26) {
-            tempIconEl.textContent = '🌡️';
-        } else {
-            tempIconEl.textContent = '🔥';
-        }
-    }
-
-    // Humidity
-    document.getElementById('humidity').textContent =
-        currentData.humidity?.toFixed(0) || '--';
-
-    // Timestamp
-    if (currentData.timestamp) {
-        const date = parseUTCTimestamp(currentData.timestamp);
-        document.getElementById('last-update').textContent =
-            date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    }
-
-    // AC Status
-    const acStatusEl = document.getElementById('ac-status-text');
-    acStatusEl.textContent = currentData.acStatus === 'on' ? 'ENCENDIDO' : 'APAGADO';
-    acStatusEl.className = `ac-status-value ${currentData.acStatus}`;
+// AC Control Card Component
+function ACControlCard({ acStatus, onAcCommand, onTimer }) {
+    return html`
+        <div class="card ac-control-card">
+            <h2>❄️ Control de Aire Acondicionado</h2>
+            <div class="ac-status">
+                <span class="ac-status-label">Estado:</span>
+                <span class="ac-status-value ${acStatus}">
+                    ${acStatus === 'on' ? 'ENCENDIDO' : 'APAGADO'}
+                </span>
+            </div>
+            <div class="ac-buttons">
+                <button class="btn btn-primary btn-large" onClick=${() => onAcCommand('on')}>
+                    <span class="btn-icon">❄️</span>
+                    ENCENDER
+                </button>
+                <button class="btn btn-secondary btn-large" onClick=${() => onAcCommand('off')}>
+                    <span class="btn-icon">🔥</span>
+                    APAGAR
+                </button>
+            </div>
+            <div class="quick-timer">
+                <label>⏱️ Apagar en:</label>
+                <div class="timer-buttons">
+                    <button class="btn btn-timer" onClick=${() => onTimer(30)}>30 min</button>
+                    <button class="btn btn-timer" onClick=${() => onTimer(60)}>1 hora</button>
+                    <button class="btn btn-timer" onClick=${() => onTimer(120)}>2 horas</button>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-async function loadStats() {
-    try {
-        const res = await apiRequest(`/device/${deviceId}/stats`);
+// Chart Card Component
+function ChartCard({ period, onPeriodChange }) {
+    const chartRef = useRef(null);
+    const chartInstance = useRef(null);
 
-        document.getElementById('stat-min-temp').textContent =
-            `${res.temperature.min?.toFixed(1) || '--'}°C`;
-        document.getElementById('stat-max-temp').textContent =
-            `${res.temperature.max?.toFixed(1) || '--'}°C`;
-        document.getElementById('stat-avg-temp').textContent =
-            `${res.temperature.average?.toFixed(1) || '--'}°C`;
-        document.getElementById('stat-hum-avg').textContent =
-            res.humidity.average?.toFixed(0) + '%' || '--%';
-    } catch (error) {
-        console.error('Failed to load stats:', error);
-    }
-}
+    useEffect(() => {
+        loadChartData(period);
+    }, [period]);
 
-async function loadChartData(period = 'day') {
-    try {
-        let limit = 50;
-        if (period === 'hour') limit = 12;
-        if (period === 'day') limit = 48;
-        if (period === 'week') limit = 168;
+    async function loadChartData(period) {
+        try {
+            // Calculate date range based on period
+            const now = new Date();
+            let fromDate;
 
-        const res = await apiRequest(`/device/${deviceId}/measurements?limit=${limit}`);
-        // Reverse to show oldest first
-        res.measurements.reverse();
-
-        const labels = res.measurements.map(m => {
-            const date = parseUTCTimestamp(m.timestamp);
             if (period === 'hour') {
-                return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                fromDate = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+            } else if (period === 'day') {
+                fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
             } else if (period === 'week') {
-                return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
             }
-            return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        });
 
-        const temperatures = res.measurements.map(m => parseInt(m.temperature));
+            const fromDateStr = fromDate.toISOString();
+            const toDateStr = now.toISOString();
 
-        updateChart(labels, temperatures);
-    } catch (error) {
-        console.error('Failed to load chart data:', error);
-    }
-}
+            const res = await apiRequest(`/device/${deviceId}/measurements?from_date=${fromDateStr}&to_date=${toDateStr}`);
 
-function updateChart(labels, data) {
-    const ctx = document.getElementById('temp-chart').getContext('2d');
-
-    if (tempChart) {
-        tempChart.destroy();
-    }
-
-    tempChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Temperatura (°C)',
-                data: data,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                fill: true,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false,
-                },
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    ticks: {
-                        callback: function (value) {
-                            return value + '°C';
-                        }
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxTicksLimit: 8,
-                    }
+            const labels = res.measurements.map(m => {
+                const date = parseTime(m.timestamp);
+                if (period === 'hour') {
+                    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                } else if (period === 'week') {
+                    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
                 }
-            },
+                return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            });
+
+            const temperatures = res.measurements.map(m => parseFloat(m.temperature));
+            const humidities = res.measurements.map(m => parseFloat(m.humidity));
+            updateChart(labels, temperatures, humidities);
+        } catch (error) {
+            console.error('Failed to load chart data:', error);
         }
-    });
-}
-
-async function sendAcCommand(action) {
-    try {
-        tg.HapticFeedback.impactOccurred('medium');
-
-        const result = await apiRequest(`/device/${deviceId}/ac`, {
-            method: 'POST',
-            body: JSON.stringify({ action }),
-        });
-
-        showToast(`AC ${action === 'on' ? 'encendido' : 'apagado'} correctamente`, 'success');
-
-        // Refresh status after a short delay
-        setTimeout(loadCurrentStatus, 1000);
-    } catch (error) {
-        console.error('Failed to send AC command:', error);
     }
-}
 
-async function createSleepTimer(minutes) {
-    try {
-        tg.HapticFeedback.impactOccurred('light');
+    function updateChart(labels, temperatures, humidities) {
+        if (!chartRef.current) return;
+        const ctx = chartRef.current.getContext('2d');
 
-        await apiRequest(`/device/${deviceId}/timer`, {
-            method: 'POST',
-            body: JSON.stringify({ minutes }),
+        if (chartInstance.current) {
+            chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Temperatura (°C)',
+                        data: temperatures,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'Humedad (%)',
+                        data: humidities,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: 0,
+                        max: 50,
+                        ticks: {
+                            callback: function (value) {
+                                return value + '°C';
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback: function (value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    },
+                    x: {
+                        ticks: { maxTicksLimit: 8 }
+                    }
+                },
+            }
         });
-
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        let timeStr = '';
-        if (hours > 0) timeStr += `${hours}h `;
-        if (mins > 0) timeStr += `${mins}min`;
-
-        showToast(`Timer configurado: apagar en ${timeStr}`, 'success');
-    } catch (error) {
-        console.error('Failed to create timer:', error);
     }
+
+    return html`
+        <div class="card chart-card">
+            <h2>📈 Historial de Temperatura</h2>
+            <div class="chart-container">
+                <canvas ref=${chartRef}></canvas>
+            </div>
+            <div class="chart-controls">
+                <button class="btn btn-small ${period === 'hour' ? 'active' : ''}"
+                    onClick=${() => onPeriodChange('hour')}>1 Hora</button>
+                <button class="btn btn-small ${period === 'day' ? 'active' : ''}"
+                    onClick=${() => onPeriodChange('day')}>24 Horas</button>
+                <button class="btn btn-small ${period === 'week' ? 'active' : ''}"
+                    onClick=${() => onPeriodChange('week')}>7 Días</button>
+            </div>
+        </div>
+    `;
 }
 
-async function loadSchedules() {
-    try {
-        const res = await apiRequest(`/device/${deviceId}/schedules`);
-        const schedules = res.schedules;
-        const listEl = document.getElementById('schedules-list');
+// Schedules Card Component
+function SchedulesCard({ schedules, onAdd, onDelete }) {
+    const days = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
-        if (schedules.length === 0) {
-            listEl.innerHTML = '<div class="empty-state">No hay programaciones configuradas</div>';
+    return html`
+        <div class="card schedules-card">
+            <div class="card-header">
+                <h2>🕐 Programaciones</h2>
+                <button class="btn btn-small btn-primary" onClick=${onAdd}>+ Agregar</button>
+            </div>
+            <div class="schedules-list">
+                ${schedules.length === 0
+            ? html`<div class="empty-state">No hay programaciones configuradas</div>`
+            : schedules.map(schedule => {
+                const selectedDays = JSON.parse(schedule.days_of_week || '[]')
+                    .map(d => days[d])
+                    .join(', ');
+                return html`
+                            <div class="schedule-item" key=${schedule.id}>
+                                <div class="schedule-info">
+                                    <div class="schedule-name">${schedule.name}</div>
+                                    <div class="schedule-details">
+                                        ${schedule.time} • ${selectedDays}
+                                    </div>
+                                </div>
+                                <span class="schedule-action ${schedule.action}">
+                                    ${schedule.action.toUpperCase()}
+                                </span>
+                                <button class="schedule-delete" onClick=${() => onDelete(schedule.id)}>
+                                    ×
+                                </button>
+                            </div>
+                        `;
+            })
+        }
+            </div>
+        </div>
+    `;
+}
+
+// Schedule Modal Component
+function ScheduleModal({ visible, onClose, onSave, showToast }) {
+    const [name, setName] = useState('');
+    const [action, setAction] = useState('on');
+    const [time, setTime] = useState('');
+    const [selectedDays, setSelectedDays] = useState([]);
+
+    function toggleDay(day) {
+        setSelectedDays(prev =>
+            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+        );
+    }
+
+    async function handleSave() {
+        if (!name || !time || selectedDays.length === 0) {
+            showToast('Por favor completa todos los campos', 'error');
             return;
         }
-        console.log(schedules);
-        listEl.innerHTML = schedules.map(schedule => {
-            const days = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-            const selectedDays = JSON.parse(schedule.days_of_week || '[]')
-                .map(d => days[d])
-                .join(', ');
+        await onSave({ name, action, time, days_of_week: selectedDays, is_active: true });
+        setName('');
+        setAction('on');
+        setTime('');
+        setSelectedDays([]);
+    }
 
-            return `
-                <div class="schedule-item">
-                    <div class="schedule-info">
-                        <div class="schedule-name">${schedule.name}</div>
-                        <div class="schedule-details">
-                            ${schedule.time} • ${selectedDays}
+    if (!visible) return null;
+
+    return html`
+        <div class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Nueva Programación</h3>
+                    <button class="close-btn" onClick=${onClose}>×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label>Nombre:</label>
+                        <input type="text" value=${name} onInput=${e => setName(e.target.value)}
+                            placeholder="Ej: Apagar por la noche" />
+                    </div>
+                    <div class="input-group">
+                        <label>Acción:</label>
+                        <select value=${action} onChange=${e => setAction(e.target.value)}>
+                            <option value="on">Encender AC</option>
+                            <option value="off">Apagar AC</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Hora:</label>
+                        <input type="time" value=${time} onInput=${e => setTime(e.target.value)} />
+                    </div>
+                    <div class="input-group">
+                        <label>Días de la semana:</label>
+                        <div class="days-selector">
+                            ${[1, 2, 3, 4, 5, 6, 0].map(day => html`
+                                <label class="day-checkbox" key=${day}>
+                                    <input type="checkbox"
+                                        checked=${selectedDays.includes(day)}
+                                        onChange=${() => toggleDay(day)} />
+                                    ${['D', 'L', 'M', 'M', 'J', 'V', 'S'][day]}
+                                </label>
+                            `)}
                         </div>
                     </div>
-                    <span class="schedule-action ${schedule.action}">${schedule.action.toUpperCase()}</span>
-                    <button class="schedule-delete" onclick="deleteSchedule(${schedule.id})">
-                        ×
-                    </button>
                 </div>
-            `;
-        }).join('');
-    } catch (error) {
-        console.error('Failed to load schedules:', error);
-    }
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onClick=${onClose}>Cancelar</button>
+                    <button class="btn btn-primary" onClick=${handleSave}>Guardar</button>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-function openScheduleModal() {
-    document.getElementById('schedule-modal').classList.remove('hidden');
-    tg.HapticFeedback.impactOccurred('light');
-}
+// Alerts Card Component
+function AlertsCard({ showToast }) {
+    const [enabled, setEnabled] = useState(false);
+    const [high, setHigh] = useState(30);
+    const [low, setLow] = useState(18);
 
-function closeScheduleModal() {
-    document.getElementById('schedule-modal').classList.add('hidden');
-    // Reset form
-    document.getElementById('schedule-name').value = '';
-    document.getElementById('schedule-action').value = 'on';
-    document.getElementById('schedule-time').value = '';
-    document.querySelectorAll('.day-checkbox input').forEach(cb => cb.checked = false);
-}
+    async function saveAlerts() {
+        if (low >= high) {
+            showToast('El umbral bajo debe ser menor que el alto', 'error');
+            return;
+        }
 
-async function saveSchedule() {
-    const name = document.getElementById('schedule-name').value;
-    const action = document.getElementById('schedule-action').value;
-    const time = document.getElementById('schedule-time').value;
-    const days = Array.from(document.querySelectorAll('.day-checkbox input:checked'))
-        .map(cb => parseInt(cb.value));
-
-    if (!name || !time || days.length === 0) {
-        showToast('Por favor completa todos los campos', 'error');
-        return;
+        try {
+            await apiRequest('/alerts/config', {
+                method: 'POST',
+                body: JSON.stringify({
+                    enabled,
+                    threshold_high: high,
+                    threshold_low: low,
+                }),
+            });
+            showToast('Configuración de alertas guardada', 'success');
+            tg.HapticFeedback.notificationOccurred('success');
+        } catch (error) {
+            console.error('Failed to save alert settings:', error);
+            tg.HapticFeedback.notificationOccurred('error');
+        }
     }
 
-    try {
-        await apiRequest(`/device/${deviceId}/schedules`, {
-            method: 'POST',
-            body: JSON.stringify({
-                name,
-                action,
-                time,
-                days_of_week: days,
-                is_active: true,
-            }),
-        });
-
-        showToast('Programación creada correctamente', 'success');
-        closeScheduleModal();
-        loadSchedules();
-        tg.HapticFeedback.notificationOccurred('success');
-    } catch (error) {
-        console.error('Failed to save schedule:', error);
-        tg.HapticFeedback.notificationOccurred('error');
-    }
+    return html`
+        <div class="card alerts-card">
+            <h2>🔔 Alertas de Temperatura</h2>
+            <div class="alert-toggle">
+                <label class="switch">
+                    <input type="checkbox" checked=${enabled} onChange=${e => setEnabled(e.target.checked)} />
+                    <span class="slider"></span>
+                </label>
+                <span class="toggle-label">Alertas Activadas</span>
+            </div>
+            ${enabled && html`
+                <div class="alert-settings">
+                    <div class="input-group">
+                        <label>🔥 Temperatura Alta (°C):</label>
+                        <input type="number" min="20" max="40" step="0.5"
+                            value=${high} onInput=${e => setHigh(parseFloat(e.target.value))} />
+                    </div>
+                    <div class="input-group">
+                        <label>🥶 Temperatura Baja (°C):</label>
+                        <input type="number" min="10" max="30" step="0.5"
+                            value=${low} onInput=${e => setLow(parseFloat(e.target.value))} />
+                    </div>
+                    <button class="btn btn-primary" onClick=${saveAlerts}>Guardar Configuración</button>
+                </div>
+            `}
+        </div>
+    `;
 }
 
-async function deleteSchedule(scheduleId) {
-    if (!confirm('¿Estás seguro de eliminar esta programación?')) {
-        return;
-    }
-
-    try {
-        await apiRequest(`/device/${deviceId}/schedules/${scheduleId}`, {
-            method: 'DELETE',
-        });
-
-        showToast('Programación eliminada', 'success');
-        loadSchedules();
-        tg.HapticFeedback.notificationOccurred('success');
-    } catch (error) {
-        console.error('Failed to delete schedule:', error);
-        tg.HapticFeedback.notificationOccurred('error');
-    }
+// Stats Card Component
+function StatsCard({ stats }) {
+    return html`
+        <div class="card stats-card">
+            <h2>📊 Estadísticas</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Temp. Mínima</span>
+                    <span class="stat-value">${stats.temperature?.min?.toFixed(1) || '--'}°C</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Temp. Máxima</span>
+                    <span class="stat-value">${stats.temperature?.max?.toFixed(1) || '--'}°C</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Temp. Promedio</span>
+                    <span class="stat-value">${stats.temperature?.average?.toFixed(1) || '--'}°C</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Hum. Promedio</span>
+                    <span class="stat-value">${stats.humidity?.average?.toFixed(0) || '--'}%</span>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-async function saveAlertSettings() {
-    const enabled = document.getElementById('alerts-enabled').checked;
-    const high = parseFloat(document.getElementById('alert-high').value);
-    const low = parseFloat(document.getElementById('alert-low').value);
+// Main App Component
+function App() {
+    const [loading, setLoading] = useState(true);
+    const [temperature, setTemperature] = useState(null);
+    const [humidity, setHumidity] = useState(null);
+    const [timestamp, setTimestamp] = useState(null);
+    const [acStatus, setAcStatus] = useState(null);
+    const [stats, setStats] = useState({ temperature: {}, humidity: {} });
+    const [schedules, setSchedules] = useState([]);
+    const [chartPeriod, setChartPeriod] = useState('day');
+    const [modalVisible, setModalVisible] = useState(false);
+    const [toast, setToast] = useState({ message: '', type: 'info', visible: false });
 
-    if (low >= high) {
-        showToast('El umbral bajo debe ser menor que el alto', 'error');
-        return;
+    function showToast(message, type = 'info') {
+        setToast({ message, type, visible: true });
+        setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
     }
 
-    try {
-        await apiRequest('/alerts/config', {
-            method: 'POST',
-            body: JSON.stringify({
-                enabled,
-                threshold_high: high,
-                threshold_low: low,
-            }),
-        });
-
-        showToast('Configuración de alertas guardada', 'success');
-        tg.HapticFeedback.notificationOccurred('success');
-    } catch (error) {
-        console.error('Failed to save alert settings:', error);
-        tg.HapticFeedback.notificationOccurred('error');
+    function getTempIcon(temp) {
+        if (temp === null) return '🌡️';
+        if (temp < 20) return '🥶';
+        if (temp < 26) return '🌡️';
+        return '🔥';
     }
+
+    async function loadCurrentStatus() {
+        try {
+            const [latest, acRes] = await Promise.all([
+                apiRequest(`/device/${deviceId}/measurements/latest`),
+                apiRequest(`/device/${deviceId}/ac/status`),
+            ]);
+            setTemperature(latest.temperature);
+            setHumidity(latest.humidity);
+            setTimestamp(latest.timestamp);
+            setAcStatus(acRes.current_status);
+        } catch (error) {
+            console.error('Failed to load status:', error);
+        }
+    }
+
+    async function loadStats() {
+        try {
+            const res = await apiRequest(`/device/${deviceId}/stats`);
+            setStats(res);
+        } catch (error) {
+            console.error('Failed to load stats:', error);
+        }
+    }
+
+    async function loadSchedules() {
+        try {
+            const res = await apiRequest(`/device/${deviceId}/schedules`);
+            setSchedules(res.schedules);
+        } catch (error) {
+            console.error('Failed to load schedules:', error);
+        }
+    }
+
+    async function sendAcCommand(action) {
+        try {
+            tg.HapticFeedback.impactOccurred('medium');
+            await apiRequest(`/device/${deviceId}/ac`, {
+                method: 'POST',
+                body: JSON.stringify({ action }),
+            });
+            showToast(`AC ${action === 'on' ? 'encendido' : 'apagado'} correctamente`, 'success');
+            setTimeout(loadCurrentStatus, 1000);
+        } catch (error) {
+            console.error('Failed to send AC command:', error);
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function createTimer(minutes) {
+        try {
+            tg.HapticFeedback.impactOccurred('light');
+            await apiRequest(`/device/${deviceId}/timer`, {
+                method: 'POST',
+                body: JSON.stringify({ minutes }),
+            });
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            let timeStr = '';
+            if (hours > 0) timeStr += `${hours}h `;
+            if (mins > 0) timeStr += `${mins}min`;
+            showToast(`Timer configurado: apagar en ${timeStr}`, 'success');
+        } catch (error) {
+            console.error('Failed to create timer:', error);
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function saveSchedule(scheduleData) {
+        try {
+            await apiRequest(`/device/${deviceId}/schedules`, {
+                method: 'POST',
+                body: JSON.stringify(scheduleData),
+            });
+            showToast('Programación creada correctamente', 'success');
+            setModalVisible(false);
+            loadSchedules();
+            tg.HapticFeedback.notificationOccurred('success');
+        } catch (error) {
+            console.error('Failed to save schedule:', error);
+            tg.HapticFeedback.notificationOccurred('error');
+        }
+    }
+
+    async function deleteSchedule(scheduleId) {
+        if (!confirm('¿Estás seguro de eliminar esta programación?')) return;
+        try {
+            await apiRequest(`/device/${deviceId}/schedules/${scheduleId}`, {
+                method: 'DELETE',
+            });
+            showToast('Programación eliminada', 'success');
+            loadSchedules();
+            tg.HapticFeedback.notificationOccurred('success');
+        } catch (error) {
+            console.error('Failed to delete schedule:', error);
+            tg.HapticFeedback.notificationOccurred('error');
+        }
+    }
+
+    useEffect(() => {
+        tg.ready();
+        tg.expand();
+
+        async function loadAllData() {
+            await Promise.all([
+                loadCurrentStatus(),
+                loadStats(),
+                loadSchedules(),
+            ]);
+            setLoading(false);
+        }
+
+        loadAllData();
+
+        const interval = setInterval(() => {
+            loadCurrentStatus();
+            loadStats();
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    if (loading) {
+        return html`<${Loading} />`;
+    }
+
+    return html`
+        <div id="dashboard">
+            <${StatusCard}
+                temperature=${temperature}
+                humidity=${humidity}
+                timestamp=${timestamp}
+                tempIcon=${getTempIcon(temperature)}
+            />
+            <${ACControlCard}
+                acStatus=${acStatus}
+                onAcCommand=${sendAcCommand}
+                onTimer=${createTimer}
+            />
+            <${ChartCard}
+                period=${chartPeriod}
+                onPeriodChange=${setChartPeriod}
+            />
+            <${SchedulesCard}
+                schedules=${schedules}
+                onAdd=${() => { setModalVisible(true); tg.HapticFeedback.impactOccurred('light'); }}
+                onDelete=${deleteSchedule}
+            />
+            <${AlertsCard} showToast=${showToast} />
+            <${StatsCard} stats=${stats} />
+            <${ScheduleModal}
+                visible=${modalVisible}
+                onClose=${() => setModalVisible(false)}
+                onSave=${saveSchedule}
+                showToast=${showToast}
+            />
+            <${Toast} message=${toast.message} type=${toast.type} visible=${toast.visible} />
+        </div>
+    `;
 }
 
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type}`;
-    toast.classList.remove('hidden');
-
-    setTimeout(() => {
-        toast.classList.add('hidden');
-    }, 3000);
-}
-
-// Make deleteSchedule available globally
-window.deleteSchedule = deleteSchedule;
+// Render the app
+render(html`<${App} />`, document.getElementById('app'));

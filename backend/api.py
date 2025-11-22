@@ -128,17 +128,41 @@ async def get_device(device_id: str, session: AsyncSession = Depends(get_session
 async def get_measurements(
     device_id: str,
     limit: int = Query(100, ge=1, le=1000),
+    from_date: Optional[str] = Query(None, description="ISO format datetime (e.g., 2024-01-01T00:00:00)"),
+    to_date: Optional[str] = Query(None, description="ISO format datetime (e.g., 2024-01-02T00:00:00)"),
     session: AsyncSession = Depends(get_session)
 ):
-    """Obtener últimas mediciones de un dispositivo"""
-    result = await session.execute(
-        select(Measurement)
-        .where(Measurement.device_id == device_id)
-        .order_by(desc(Measurement.timestamp))
-        .limit(limit)
-    )
+    """Obtener mediciones de un dispositivo, filtradas por fecha o límite"""
+    query = select(Measurement).where(Measurement.device_id == device_id)
+
+    # Filtrar por fechas si se proporcionan
+    if from_date:
+        try:
+            # Remove Z suffix and timezone info to work with naive datetimes (local time)
+            clean_date = from_date.replace('Z', '').split('+')[0]
+            from_dt = datetime.fromisoformat(clean_date)
+            query = query.where(Measurement.timestamp >= from_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid from_date format")
+
+    if to_date:
+        try:
+            # Remove Z suffix and timezone info to work with naive datetimes (local time)
+            clean_date = to_date.replace('Z', '').split('+')[0]
+            to_dt = datetime.fromisoformat(clean_date)
+            query = query.where(Measurement.timestamp <= to_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid to_date format")
+
+    query = query.order_by(desc(Measurement.timestamp))
+
+    # Solo aplicar limit si no hay filtro de fechas
+    if not from_date and not to_date:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
     measurements = result.scalars().all()
-    
+
     return {
         "device_id": device_id,
         "count": len(measurements),

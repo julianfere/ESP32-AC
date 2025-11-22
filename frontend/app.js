@@ -1,4 +1,9 @@
-const { render, h, useState, useEffect, useRef, html } = window.preact;
+import { render, h } from 'https://esm.sh/preact@10.19.3';
+import { useState, useEffect, useRef } from 'https://esm.sh/preact@10.19.3/hooks';
+import htm from 'https://esm.sh/htm@3.1.1';
+
+const html = htm.bind(h);
+
 
 // Configuración
 const API_BASE_URL = window.location.protocol + '//' + window.location.host;
@@ -62,12 +67,12 @@ const DashboardCard = ({ title, value, gradient, icon }) => {
 // COMPONENTE: Chart
 // ============================================
 
-const ChartComponent = ({ title, data, color, chartId }) => {
+const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange }) => {
     const canvasRef = useRef(null);
     const chartRef = useRef(null);
 
     useEffect(() => {
-        if (!canvasRef.current || !data || data.length === 0) return;
+        if (!canvasRef.current || !tempData || tempData.length === 0) return;
 
         if (chartRef.current) {
             chartRef.current.destroy();
@@ -77,29 +82,80 @@ const ChartComponent = ({ title, data, color, chartId }) => {
         chartRef.current = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.map(d => new Date(d.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })),
-                datasets: [{
-                    label: title,
-                    data: data.map(d => d.value),
-                    borderColor: color,
-                    backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-                    tension: 0.4,
-                    fill: true
-                }]
+                labels: tempData.map(d => {
+                    const date = new Date(d.timestamp);
+                    if (period === 'week') {
+                        return date.toLocaleDateString('es', { day: '2-digit', month: '2-digit' });
+                    }
+                    return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+                }),
+                datasets: [
+                    {
+                        label: 'Temperatura (°C)',
+                        data: tempData.map(d => d.value),
+                        borderColor: 'rgb(249, 115, 22)',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Humedad (%)',
+                        data: humidityData.map(d => d.value),
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { labels: { color: '#e5e7eb' } }
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { color: '#e5e7eb' }
+                    }
                 },
                 scales: {
                     y: {
-                        ticks: { color: '#9ca3af' },
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: 0,
+                        max: 50,
+                        ticks: {
+                            color: '#f97316',
+                            callback: function(value) {
+                                return value + '°C';
+                            }
+                        },
                         grid: { color: '#374151' }
                     },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            color: '#3b82f6',
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    },
                     x: {
-                        ticks: { color: '#9ca3af' },
+                        ticks: {
+                            color: '#9ca3af',
+                            maxTicksLimit: 8
+                        },
                         grid: { color: '#374151' }
                     }
                 }
@@ -111,17 +167,39 @@ const ChartComponent = ({ title, data, color, chartId }) => {
                 chartRef.current.destroy();
             }
         };
-    }, [data]);
+    }, [tempData, humidityData, period]);
 
     return html`
         <div class="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700">
-            <h3 class="text-lg font-semibold mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2" style="color: ${color}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                </svg>
-                ${title}
-            </h3>
-            <div style="height: 250px; position: relative;">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                    </svg>
+                    Histórico de Temperatura y Humedad
+                </h3>
+                <div class="flex gap-2">
+                    <button
+                        onClick=${() => onPeriodChange('hour')}
+                        class="px-3 py-1 rounded text-sm ${period === 'hour' ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"
+                    >
+                        1 Hora
+                    </button>
+                    <button
+                        onClick=${() => onPeriodChange('day')}
+                        class="px-3 py-1 rounded text-sm ${period === 'day' ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"
+                    >
+                        24 Horas
+                    </button>
+                    <button
+                        onClick=${() => onPeriodChange('week')}
+                        class="px-3 py-1 rounded text-sm ${period === 'week' ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}"
+                    >
+                        7 Días
+                    </button>
+                </div>
+            </div>
+            <div style="height: 300px; position: relative;">
                 <canvas ref=${canvasRef}></canvas>
             </div>
         </div>
@@ -212,16 +290,16 @@ const SleepTimerTab = ({ timers, onLoadTimers, onCreateTimer, onCancelTimer }) =
     }, []);
 
     // Actualizar tiempo restante cada segundo
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const newRemainingTime = {};
-            timers.forEach(timer => {
-                newRemainingTime[timer.id] = timer.remaining_seconds - 1;
-            });
-            setRemainingTime(newRemainingTime);
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [timers]);
+    // useEffect(() => {
+    //     const interval = setInterval(() => {
+    //         const newRemainingTime = {};
+    //         timers.forEach(timer => {
+    //             newRemainingTime[timer.id] = timer.remaining_seconds - 1;
+    //         });
+    //         setRemainingTime(newRemainingTime);
+    //     }, 1000);
+    //     return () => clearInterval(interval);
+    // }, [timers]);
 
     // Inicializar tiempo restante cuando cambian los timers
     useEffect(() => {
@@ -681,6 +759,7 @@ const App = () => {
     const [sleepTimers, setSleepTimers] = useState([]);
     const [activeTab, setActiveTab] = useState('ac');
     const [toasts, setToasts] = useState([]);
+    const [chartPeriod, setChartPeriod] = useState('day');
 
     // Toast helper
     const showToast = (message, type = 'success') => {
@@ -716,12 +795,27 @@ const App = () => {
     };
 
     // Load device data
-    const loadData = async () => {
+    const loadData = async (period = chartPeriod) => {
         try {
+            // Calculate date range based on period
+            const now = new Date();
+            let fromDate;
+
+            if (period === 'hour') {
+                fromDate = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+            } else if (period === 'day') {
+                fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+            } else if (period === 'week') {
+                fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+            }
+
+            const fromDateStr = fromDate.toISOString();
+            const toDateStr = now.toISOString();
+
             const [device, latest, measurementsData, status, history] = await Promise.all([
                 apiRequest(`/devices/${DEVICE_ID}`),
                 apiRequest(`/devices/${DEVICE_ID}/measurements/latest`),
-                apiRequest(`/devices/${DEVICE_ID}/measurements?limit=50`),
+                apiRequest(`/devices/${DEVICE_ID}/measurements?from_date=${fromDateStr}&to_date=${toDateStr}`),
                 apiRequest(`/devices/${DEVICE_ID}/ac/status`),
                 apiRequest(`/devices/${DEVICE_ID}/ac/history?limit=20`)
             ]);
@@ -734,6 +828,12 @@ const App = () => {
         } catch (error) {
             showToast(`Error cargando datos: ${error.message}`, 'error');
         }
+    };
+
+    // Handle period change
+    const handlePeriodChange = (newPeriod) => {
+        setChartPeriod(newPeriod);
+        loadData(newPeriod);
     };
 
     // AC Commands
@@ -947,19 +1047,13 @@ const App = () => {
     })}
                 </div>
 
-                <!-- Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    ${ChartComponent({
-        title: 'Histórico de Temperatura',
-        data: tempChartData,
-        color: 'rgb(249, 115, 22)',
-        chartId: 'temp'
-    })}
-                    ${ChartComponent({
-        title: 'Histórico de Humedad',
-        data: humidityChartData,
-        color: 'rgb(59, 130, 246)',
-        chartId: 'humidity'
+                <!-- Chart -->
+                <div class="mb-8">
+                    ${CombinedChartComponent({
+        tempData: tempChartData,
+        humidityData: humidityChartData,
+        period: chartPeriod,
+        onPeriodChange: handlePeriodChange
     })}
                 </div>
 
@@ -1004,6 +1098,4 @@ const App = () => {
 };
 
 // Render the app
-setTimeout(() => {
-    render(html`<${App} />`, document.getElementById('app'));
-}, 100);
+render(html`<${App} />`, document.getElementById('app'));
