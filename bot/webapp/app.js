@@ -149,7 +149,12 @@ function ChartCard({ period, onPeriodChange }) {
 
             const res = await apiRequest(`/device/${deviceId}/measurements?from_date=${fromDateStr}&to_date=${toDateStr}`);
 
-            const labels = res.measurements.map(m => {
+            // Sort by timestamp ascending (oldest first)
+            const sortedMeasurements = res.measurements.sort((a, b) =>
+                new Date(a.timestamp) - new Date(b.timestamp)
+            );
+
+            const labels = sortedMeasurements.map(m => {
                 const date = parseTime(m.timestamp);
                 if (period === 'hour') {
                     return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -159,8 +164,8 @@ function ChartCard({ period, onPeriodChange }) {
                 return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
             });
 
-            const temperatures = res.measurements.map(m => parseFloat(m.temperature));
-            const humidities = res.measurements.map(m => parseFloat(m.humidity));
+            const temperatures = sortedMeasurements.map(m => parseFloat(m.temperature));
+            const humidities = sortedMeasurements.map(m => parseFloat(m.humidity));
             updateChart(labels, temperatures, humidities);
         } catch (error) {
             console.error('Failed to load chart data:', error);
