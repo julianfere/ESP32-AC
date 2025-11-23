@@ -14,7 +14,13 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timedelta
 from pathlib import Path
-from utils import now_argentina
+from utils import (
+    now_argentina, parse_iso_date, check_mqtt_success,
+    validate_action, validate_rgb_color, validate_delay_minutes,
+    serialize_device, serialize_measurement, serialize_measurement_average,
+    serialize_ac_event
+)
+from scheduler import save_ac_event
 
 app = FastAPI(title="Sistema de Clima Inteligente API", version="1.0.0")
 
@@ -89,16 +95,7 @@ async def get_devices(session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Device))
     devices = result.scalars().all()
     return {
-        "devices": [
-            {
-                "device_id": d.device_id,
-                "name": d.name,
-                "location": d.location,
-                "is_online": d.is_online,
-                "last_seen": d.last_seen.isoformat() if d.last_seen else None
-            }
-            for d in devices
-        ]
+        "devices": [serialize_device(d) for d in devices]
     }
 
 @app.get("/devices/{device_id}")
@@ -111,14 +108,8 @@ async def get_device(device_id: str, session: AsyncSession = Depends(get_session
     
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    
-    return {
-        "device_id": device.device_id,
-        "name": device.name,
-        "location": device.location,
-        "is_online": device.is_online,
-        "last_seen": device.last_seen.isoformat() if device.last_seen else None
-    }
+
+    return serialize_device(device)
 
 # ============================================
 # ENDPOINTS: MEDICIONES
@@ -138,18 +129,14 @@ async def get_measurements(
     # Filtrar por fechas si se proporcionan
     if from_date:
         try:
-            # Remove Z suffix and timezone info to work with naive datetimes (local time)
-            clean_date = from_date.replace('Z', '').split('+')[0]
-            from_dt = datetime.fromisoformat(clean_date)
+            from_dt = parse_iso_date(from_date)
             query = query.where(Measurement.timestamp >= from_dt)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid from_date format")
 
     if to_date:
         try:
-            # Remove Z suffix and timezone info to work with naive datetimes (local time)
-            clean_date = to_date.replace('Z', '').split('+')[0]
-            to_dt = datetime.fromisoformat(clean_date)
+            to_dt = parse_iso_date(to_date)
             query = query.where(Measurement.timestamp <= to_dt)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid to_date format")
@@ -166,14 +153,7 @@ async def get_measurements(
     return {
         "device_id": device_id,
         "count": len(measurements),
-        "measurements": [
-            {
-                "temperature": m.temperature,
-                "humidity": m.humidity,
-                "timestamp": m.timestamp.isoformat()
-            }
-            for m in reversed(measurements)  # Orden cronológico
-        ]
+        "measurements": [serialize_measurement(m) for m in reversed(measurements)]
     }
 
 @app.get("/devices/{device_id}/measurements/latest")
@@ -192,13 +172,10 @@ async def get_latest_measurement(
     
     if not measurement:
         raise HTTPException(status_code=404, detail="No measurements found")
-    
-    return {
-        "device_id": device_id,
-        "temperature": measurement.temperature,
-        "humidity": measurement.humidity,
-        "timestamp": measurement.timestamp.isoformat()
-    }
+
+    result = serialize_measurement(measurement)
+    result["device_id"] = device_id
+    return result
 
 @app.get("/devices/{device_id}/averages")
 async def get_averages(
@@ -221,16 +198,7 @@ async def get_averages(
         "device_id": device_id,
         "period_hours": hours,
         "count": len(averages),
-        "averages": [
-            {
-                "avg_temperature": a.avg_temperature,
-                "avg_humidity": a.avg_humidity,
-                "sample_count": a.sample_count,
-                "period_start": a.period_start.isoformat(),
-                "period_end": a.period_end.isoformat()
-            }
-            for a in averages
-        ]
+        "averages": [serialize_measurement_average(a) for a in averages]
     }
 
 @app.get("/devices/{device_id}/stats")
@@ -290,25 +258,15 @@ async def send_ac_command(
 ):
     """Enviar comando al aire acondicionado"""
     mqtt = get_mqtt_client()
-    
-    if command.action not in ['on', 'off']:
-        raise HTTPException(status_code=400, detail="Action must be 'on' or 'off'")
-    
+
+    validate_action(command.action)
+
     # Enviar comando MQTT
     success = mqtt.send_ac_command(device_id, command.action)
-    
-    if not success:
-        raise HTTPException(status_code=503, detail="Failed to send MQTT command")
-    
-    # Guardar evento (será actualizado cuando llegue confirmación)
-    ac_event = AcEvent(
-        device_id=device_id,
-        action=command.action,
-        triggered_by='manual',
-        timestamp=now_argentina()
-    )
-    session.add(ac_event)
-    await session.commit()
+    check_mqtt_success(success, "AC command")
+
+    # Guardar evento
+    await save_ac_event(session, device_id, command.action, 'manual')
     
     return {
         "device_id": device_id,
@@ -358,14 +316,7 @@ async def get_ac_history(
     return {
         "device_id": device_id,
         "count": len(events),
-        "events": [
-            {
-                "action": e.action,
-                "triggered_by": e.triggered_by,
-                "timestamp": e.timestamp.isoformat()
-            }
-            for e in events
-        ]
+        "events": [serialize_ac_event(e) for e in events]
     }
 
 # ============================================
@@ -376,15 +327,11 @@ async def get_ac_history(
 async def send_led_command(device_id: str, command: LedCommandRequest):
     """Enviar comando al LED"""
     mqtt = get_mqtt_client()
-    
-    # Validar rangos
-    if not (0 <= command.r <= 255 and 0 <= command.g <= 255 and 0 <= command.b <= 255):
-        raise HTTPException(status_code=400, detail="RGB values must be 0-255")
-    
+
+    validate_rgb_color(command.r, command.g, command.b)
+
     success = mqtt.send_led_command(device_id, command.r, command.g, command.b, command.enabled)
-    
-    if not success:
-        raise HTTPException(status_code=503, detail="Failed to send MQTT command")
+    check_mqtt_success(success, "LED command")
     
     return {
         "device_id": device_id,
@@ -406,9 +353,7 @@ async def update_device_config(device_id: str, config: ConfigUpdateRequest):
         config.sample_interval,
         config.avg_samples
     )
-    
-    if not success:
-        raise HTTPException(status_code=503, detail="Failed to send MQTT command")
+    check_mqtt_success(success, "config update")
     
     return {
         "device_id": device_id,
@@ -423,11 +368,9 @@ async def update_device_config(device_id: str, config: ConfigUpdateRequest):
 async def reboot_device(device_id: str):
     """Reiniciar dispositivo"""
     mqtt = get_mqtt_client()
-    
+
     success = mqtt.send_reboot_command(device_id)
-    
-    if not success:
-        raise HTTPException(status_code=503, detail="Failed to send MQTT command")
+    check_mqtt_success(success, "reboot command")
     
     return {
         "device_id": device_id,
@@ -554,11 +497,8 @@ async def create_sleep_timer(
     session: AsyncSession = Depends(get_session)
 ):
     """Crear un sleep timer (temporizador de una sola ejecución)"""
-    if timer.action not in ['on', 'off']:
-        raise HTTPException(status_code=400, detail="Action must be 'on' or 'off'")
-
-    if timer.delay_minutes < 1 or timer.delay_minutes > 1440:  # Máximo 24 horas
-        raise HTTPException(status_code=400, detail="Delay must be between 1 and 1440 minutes")
+    validate_action(timer.action)
+    validate_delay_minutes(timer.delay_minutes)
 
     execute_at = now_argentina() + timedelta(minutes=timer.delay_minutes)
 

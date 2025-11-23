@@ -15,6 +15,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+async def save_ac_event(session: AsyncSession, device_id: str, action: str, triggered_by: str):
+    """Crear y guardar un evento AC en la base de datos"""
+    ac_event = AcEvent(
+        device_id=device_id,
+        action=action,
+        triggered_by=triggered_by,
+        timestamp=now_argentina()
+    )
+    session.add(ac_event)
+    await session.commit()
+    return ac_event
+
+
 class SchedulerService:
     """Servicio que ejecuta schedules automáticamente"""
 
@@ -135,14 +148,7 @@ class SchedulerService:
             return
 
         # Guardar evento en la base de datos
-        ac_event = AcEvent(
-            device_id=schedule.device_id,
-            action=schedule.action,
-            triggered_by=f'schedule:{schedule.id}',
-            timestamp=now_argentina()
-        )
-        session.add(ac_event)
-        await session.commit()
+        await save_ac_event(session, schedule.device_id, schedule.action, f'schedule:{schedule.id}')
 
         logger.info(f"✓ Schedule ejecutado exitosamente: {schedule.name} ({schedule.action})")
 
@@ -194,14 +200,7 @@ class SchedulerService:
             return
 
         # Guardar evento en la base de datos
-        ac_event = AcEvent(
-            device_id=timer.device_id,
-            action=timer.action,
-            triggered_by=f'sleep_timer:{timer.id}',
-            timestamp=now_argentina()
-        )
-        session.add(ac_event)
-        await session.commit()
+        await save_ac_event(session, timer.device_id, timer.action, f'sleep_timer:{timer.id}')
 
         logger.info(f"✓ Sleep timer ejecutado exitosamente: {timer.action} for device {timer.device_id}")
 

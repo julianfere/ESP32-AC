@@ -4,7 +4,7 @@ from database import Device, Measurement, MeasurementAverage, AcEvent, AsyncSess
 from datetime import datetime
 from typing import Dict, Any
 import json
-from utils import now_argentina, from_timestamp_argentina
+from utils import now_argentina, from_timestamp_argentina, parse_message_timestamp
 
 class MessageHandler:
     """Manejador de mensajes MQTT"""
@@ -20,13 +20,7 @@ class MessageHandler:
         try:
             temp = payload.get('temperature')
             hum = payload.get('humidity')
-            timestamp_raw = payload.get('timestamp', int(now_argentina().timestamp()))
-
-            # Convertir timestamp a datetime en timezone de Argentina
-            if isinstance(timestamp_raw, int):
-                timestamp = from_timestamp_argentina(timestamp_raw)
-            else:
-                timestamp = now_argentina()
+            timestamp = parse_message_timestamp(payload)
             
             async with AsyncSessionLocal() as session:
                 print(f"🔗 Conectado a la base de datos para device: {device_id}")
@@ -62,12 +56,7 @@ class MessageHandler:
             avg_temp = payload.get('temp')
             avg_hum = payload.get('hum')
             samples = payload.get('samples', 0)
-            timestamp_raw = payload.get('timestamp', int(now_argentina().timestamp()))
-
-            if isinstance(timestamp_raw, int):
-                timestamp = from_timestamp_argentina(timestamp_raw)
-            else:
-                timestamp = now_argentina()
+            timestamp = parse_message_timestamp(payload)
             
             async with AsyncSessionLocal() as session:
                 # Calcular período (asumir 5 minutos atrás)
@@ -99,12 +88,7 @@ class MessageHandler:
         try:
             state = payload.get('state')  # 'on' or 'off'
             confirmed = payload.get('confirmed', False)
-            timestamp_raw = payload.get('timestamp', int(now_argentina().timestamp()))
-
-            if isinstance(timestamp_raw, int):
-                timestamp = from_timestamp_argentina(timestamp_raw)
-            else:
-                timestamp = now_argentina()
+            timestamp = parse_message_timestamp(payload)
             
             async with AsyncSessionLocal() as session:
                 # Guardar evento

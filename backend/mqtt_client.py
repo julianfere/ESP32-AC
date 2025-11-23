@@ -266,23 +266,5 @@ def get_mqtt_client() -> MQTTClient:
     return _mqtt_client
 
 
-# Importar handlers desde message_handlers.py
-from message_handlers import MessageHandler
-
-def register_handlers(mqtt_client: MQTTClient):
-    """Registrar todos los manejadores de mensajes"""
-    handler = MessageHandler()
-
-    print("📋 Registrando callbacks MQTT...")
-
-    mqtt_client.register_callback("+/sensor/raw", handler.handle_sensor_raw)
-    mqtt_client.register_callback("+/sensor/avg", handler.handle_sensor_avg)
-    mqtt_client.register_callback("+/ac/status", handler.handle_ac_status)
-    mqtt_client.register_callback("+/led/status", handler.handle_led_status)
-    mqtt_client.register_callback("+/system/status", handler.handle_system_status)
-    mqtt_client.register_callback("+/system/heartbeat", handler.handle_heartbeat)
-
-    print("✓ Todos los handlers MQTT registrados")
-    print(f"📊 Total callbacks registrados: {len(mqtt_client.callbacks)}")
-    for pattern in mqtt_client.callbacks.keys():
-        print(f"  - {pattern}")
+# Importar register_handlers desde message_handlers.py
+from message_handlers import register_handlers
