@@ -8,3 +8,4 @@ backend/database.sqlite
 backend/.env
 backend/data/*
 backend/__pycache__/*
+backend\data\*
