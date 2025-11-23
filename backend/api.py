@@ -6,7 +6,7 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import (
     get_session, Device, Measurement, MeasurementAverage,
-    AcEvent, Schedule, LedConfig, SleepTimer
+    AcEvent, AcState, Schedule, LedConfig, SleepTimer
 )
 from mqtt_client import get_mqtt_client
 from scheduler import get_scheduler
@@ -64,6 +64,9 @@ if frontend_path.exists():
 
 class AcCommandRequest(BaseModel):
     action: str  # 'on' or 'off'
+    temperature: Optional[int] = 24  # 17-30°C
+    mode: Optional[str] = 'cool'  # cool/heat/auto/fan/dry
+    fan_speed: Optional[str] = 'auto'  # auto/low/medium/high
 
 class LedCommandRequest(BaseModel):
     r: int
@@ -172,7 +175,7 @@ async def get_latest_measurement(
     
     if not measurement:
         raise HTTPException(status_code=404, detail="No measurements found")
-
+    
     result = serialize_measurement(measurement)
     result["device_id"] = device_id
     return result
@@ -261,16 +264,60 @@ async def send_ac_command(
 
     validate_action(command.action)
 
-    # Enviar comando MQTT
-    success = mqtt.send_ac_command(device_id, command.action)
+    # Validar temperatura
+    if command.temperature < 17 or command.temperature > 30:
+        raise HTTPException(status_code=400, detail="Temperature must be between 17 and 30°C")
+
+    # Validar modo
+    valid_modes = ['cool', 'heat', 'auto', 'fan', 'dry']
+    if command.mode not in valid_modes:
+        raise HTTPException(status_code=400, detail=f"Mode must be one of: {valid_modes}")
+
+    # Validar fan speed
+    valid_fan_speeds = ['auto', 'low', 'medium', 'high']
+    if command.fan_speed not in valid_fan_speeds:
+        raise HTTPException(status_code=400, detail=f"Fan speed must be one of: {valid_fan_speeds}")
+
+    # Enviar comando MQTT con parámetros extendidos
+    success = mqtt.send_ac_command(
+        device_id, command.action, command.temperature, command.mode, command.fan_speed
+    )
     check_mqtt_success(success, "AC command")
 
-    # Guardar evento
-    await save_ac_event(session, device_id, command.action, 'manual')
-    
+    # Actualizar estado en BD
+    result = await session.execute(
+        select(AcState).where(AcState.device_id == device_id)
+    )
+    ac_state = result.scalar_one_or_none()
+
+    if not ac_state:
+        ac_state = AcState(device_id=device_id)
+        session.add(ac_state)
+
+    ac_state.is_on = command.action == 'on'
+    ac_state.temperature = command.temperature
+    ac_state.mode = command.mode
+    ac_state.fan_speed = command.fan_speed
+    ac_state.last_updated = now_argentina()
+
+    # Guardar evento con parámetros
+    event = AcEvent(
+        device_id=device_id,
+        action=command.action,
+        temperature=command.temperature,
+        mode=command.mode,
+        fan_speed=command.fan_speed,
+        triggered_by='manual'
+    )
+    session.add(event)
+    await session.commit()
+
     return {
         "device_id": device_id,
         "action": command.action,
+        "temperature": command.temperature,
+        "mode": command.mode,
+        "fan_speed": command.fan_speed,
         "status": "command_sent"
     }
 
@@ -279,23 +326,31 @@ async def get_ac_status(
     device_id: str,
     session: AsyncSession = Depends(get_session)
 ):
-    """Obtener último estado conocido del AC"""
+    """Obtener estado actual del AC"""
     result = await session.execute(
-        select(AcEvent)
-        .where(AcEvent.device_id == device_id)
-        .order_by(desc(AcEvent.timestamp))
-        .limit(1)
+        select(AcState).where(AcState.device_id == device_id)
     )
-    event = result.scalar_one_or_none()
-    
-    if not event:
-        return {"device_id": device_id, "state": "unknown", "last_update": None}
-    
+    ac_state = result.scalar_one_or_none()
+
+    if not ac_state:
+        return {
+            "device_id": device_id,
+            "state": "unknown",
+            "is_on": False,
+            "temperature": 24,
+            "mode": "cool",
+            "fan_speed": "auto",
+            "last_update": None
+        }
+
     return {
         "device_id": device_id,
-        "state": event.action,
-        "last_update": event.timestamp.isoformat(),
-        "triggered_by": event.triggered_by
+        "state": "on" if ac_state.is_on else "off",
+        "is_on": ac_state.is_on,
+        "temperature": ac_state.temperature,
+        "mode": ac_state.mode,
+        "fan_speed": ac_state.fan_speed,
+        "last_update": ac_state.last_updated.isoformat() if ac_state.last_updated else None
     }
 
 @app.get("/devices/{device_id}/ac/history")

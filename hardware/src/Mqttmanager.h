@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 
 // Forward declarations para callbacks
-typedef void (*AcCommandCallback)(bool turnOn);
+typedef void (*AcCommandCallback)(bool turnOn, uint8_t temperature, const String& mode, const String& fanSpeed);
 typedef void (*LedCommandCallback)(uint8_t r, uint8_t g, uint8_t b, bool enabled);
 typedef void (*ConfigUpdateCallback)(int sampleInterval, int avgSamples);
 
@@ -103,9 +103,13 @@ private:
     if (topicStr.endsWith("/ac/command"))
     {
       String action = doc["action"].as<String>();
+      uint8_t temperature = doc["temperature"] | 24;
+      String mode = doc["mode"] | "cool";
+      String fanSpeed = doc["fan_speed"] | "auto";
+
       if (acCallback)
       {
-        acCallback(action == "on");
+        acCallback(action == "on", temperature, mode, fanSpeed);
       }
     }
     else if (topicStr.endsWith("/led/command"))
@@ -214,24 +218,27 @@ public:
   }
 
   // Publicar estado del AC (con retained flag)
-  void publishAcStatus(bool isOn, unsigned long timestamp)
+  void publishAcStatus(bool isOn, uint8_t temperature, const String& mode, const String& fanSpeed, unsigned long timestamp)
   {
     if (!mqtt.connected())
       return;
 
-    StaticJsonDocument<128> doc;
+    StaticJsonDocument<256> doc;
     doc["state"] = isOn ? "on" : "off";
+    doc["temperature"] = temperature;
+    doc["mode"] = mode;
+    doc["fan_speed"] = fanSpeed;
     doc["confirmed"] = true;
     doc["timestamp"] = timestamp;
 
-    char buffer[128];
+    char buffer[256];
     serializeJson(doc, buffer);
 
     String topic = deviceId + "/ac/status";
     mqtt.publish(topic.c_str(), buffer, true); // retained = true
 
-    Serial.print("❄️ Estado AC publicado: ");
-    Serial.println(isOn ? "ON" : "OFF");
+    Serial.printf("❄️ Estado AC publicado: %s, %d°C, %s, %s\n",
+                  isOn ? "ON" : "OFF", temperature, mode.c_str(), fanSpeed.c_str());
   }
 
   // Publicar estado del LED

@@ -95,13 +95,24 @@ class BackendAPIClient:
             "ac_status": ac_status.get("current_status"),
         }
 
-    async def send_ac_command(self, device_id: str, action: str) -> Dict[str, Any]:
-        """Send AC on/off command"""
+    async def send_ac_command(self, device_id: str, action: str,
+                              temperature: int = 24, mode: str = 'cool',
+                              fan_speed: str = 'auto') -> Dict[str, Any]:
+        """Send AC command with extended parameters"""
         return await self._request(
             "POST",
             f"/devices/{device_id}/ac/command",
-            json={"action": action}
+            json={
+                "action": action,
+                "temperature": temperature,
+                "mode": mode,
+                "fan_speed": fan_speed
+            }
         )
+
+    async def get_ac_state(self, device_id: str) -> Dict[str, Any]:
+        """Get current AC state"""
+        return await self._request("GET", f"/devices/{device_id}/ac/status")
 
     async def get_measurements(self, device_id: str, limit: int = 50) -> list:
         """Get recent measurements"""
@@ -190,8 +201,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🎛️ **Panel Completo**: Usa el botón 'Abrir Panel de Control' para acceder a todas las funciones\n"
         f"⚡ **Controles Rápidos**: Usa los botones de abajo o comandos:\n\n"
         f"• /status - Ver temperatura y estado del AC\n"
-        f"• /ac_on - Encender AC\n"
+        f"• /ac_on [temp] - Encender AC\n"
         f"• /ac_off - Apagar AC\n"
+        f"• /ac_set <temp> [modo] [fan] - Control avanzado\n"
         f"• /timer <minutos> - Programar apagado automático\n"
         f"• /alerts - Configurar alertas de temperatura\n"
         f"• /health - Estado del sistema\n\n"
@@ -238,15 +250,35 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @require_auth
 async def ac_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /ac_on command"""
+    """Handle /ac_on command - optionally with temperature"""
     try:
-        await update.message.reply_text("❄️ Encendiendo AC...")
+        # Get current state to preserve settings
+        ac_state = await api_client.get_ac_state(DEFAULT_DEVICE_ID)
+        temperature = ac_state.get('temperature', 24)
+        mode = ac_state.get('mode', 'cool')
+        fan_speed = ac_state.get('fan_speed', 'auto')
 
-        result = await api_client.send_ac_command(DEFAULT_DEVICE_ID, "on")
+        # Parse optional temperature argument
+        if context.args and len(context.args) >= 1:
+            try:
+                temperature = int(context.args[0])
+                if temperature < 17 or temperature > 30:
+                    await update.message.reply_text("❌ La temperatura debe estar entre 17 y 30°C")
+                    return
+            except ValueError:
+                pass
+
+        await update.message.reply_text(f"❄️ Encendiendo AC a {temperature}°C...")
+
+        result = await api_client.send_ac_command(
+            DEFAULT_DEVICE_ID, "on", temperature, mode, fan_speed
+        )
 
         await update.message.reply_text(
-            f"✅ Comando enviado: AC encendido\n"
-            f"Estado: {result.get('status')}"
+            f"✅ AC encendido\n"
+            f"🌡️ Temperatura: {result.get('temperature')}°C\n"
+            f"📍 Modo: {result.get('mode')}\n"
+            f"🌀 Ventilador: {result.get('fan_speed')}"
         )
 
     except Exception as e:
@@ -258,17 +290,88 @@ async def ac_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ac_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /ac_off command"""
     try:
+        # Get current state to preserve settings
+        ac_state = await api_client.get_ac_state(DEFAULT_DEVICE_ID)
+        temperature = ac_state.get('temperature', 24)
+        mode = ac_state.get('mode', 'cool')
+        fan_speed = ac_state.get('fan_speed', 'auto')
+
         await update.message.reply_text("🔥 Apagando AC...")
 
-        result = await api_client.send_ac_command(DEFAULT_DEVICE_ID, "off")
-
-        await update.message.reply_text(
-            f"✅ Comando enviado: AC apagado\n"
-            f"Estado: {result.get('status')}"
+        result = await api_client.send_ac_command(
+            DEFAULT_DEVICE_ID, "off", temperature, mode, fan_speed
         )
+
+        await update.message.reply_text("✅ AC apagado")
 
     except Exception as e:
         logger.error(f"Error sending AC OFF command: {e}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
+@require_auth
+async def ac_set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /ac_set command for fine control"""
+    if not context.args:
+        await update.message.reply_text(
+            "⚙️ **Control Avanzado del AC**\n\n"
+            "Uso: /ac_set <temp> [modo] [ventilador]\n\n"
+            "**Ejemplos:**\n"
+            "• /ac_set 24 - Solo temperatura\n"
+            "• /ac_set 22 cool auto - Completo\n\n"
+            "**Modos:** cool, heat, auto, fan, dry\n"
+            "**Ventilador:** auto, low, medium, high",
+            parse_mode="Markdown"
+        )
+        return
+
+    try:
+        # Get current state
+        ac_state = await api_client.get_ac_state(DEFAULT_DEVICE_ID)
+        temperature = ac_state.get('temperature', 24)
+        mode = ac_state.get('mode', 'cool')
+        fan_speed = ac_state.get('fan_speed', 'auto')
+
+        # Parse arguments
+        if len(context.args) >= 1:
+            temperature = int(context.args[0])
+            if temperature < 17 or temperature > 30:
+                await update.message.reply_text("❌ Temperatura: 17-30°C")
+                return
+
+        if len(context.args) >= 2:
+            mode = context.args[1].lower()
+            if mode not in ['cool', 'heat', 'auto', 'fan', 'dry']:
+                await update.message.reply_text("❌ Modo inválido")
+                return
+
+        if len(context.args) >= 3:
+            fan_speed = context.args[2].lower()
+            if fan_speed not in ['auto', 'low', 'medium', 'high']:
+                await update.message.reply_text("❌ Ventilador inválido")
+                return
+
+        await update.message.reply_text(f"⚙️ Configurando AC...")
+
+        result = await api_client.send_ac_command(
+            DEFAULT_DEVICE_ID, "on", temperature, mode, fan_speed
+        )
+
+        mode_icons = {'cool': '❄️', 'heat': '🔥', 'auto': '🔄', 'fan': '🌀', 'dry': '💧'}
+        mode_icon = mode_icons.get(result.get('mode'), '⚙️')
+
+        await update.message.reply_text(
+            f"✅ AC configurado\n\n"
+            f"🌡️ **Temperatura**: {result.get('temperature')}°C\n"
+            f"{mode_icon} **Modo**: {result.get('mode')}\n"
+            f"🌀 **Ventilador**: {result.get('fan_speed')}",
+            parse_mode="Markdown"
+        )
+
+    except ValueError:
+        await update.message.reply_text("❌ Temperatura debe ser un número")
+    except Exception as e:
+        logger.error(f"Error setting AC: {e}")
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
@@ -721,6 +824,7 @@ def main():
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("ac_on", ac_on_command))
     application.add_handler(CommandHandler("ac_off", ac_off_command))
+    application.add_handler(CommandHandler("ac_set", ac_set_command))
     application.add_handler(CommandHandler("timer", timer_command))
     application.add_handler(CommandHandler("alerts", alerts_command))
     application.add_handler(CommandHandler("health", health_command))

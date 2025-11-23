@@ -192,11 +192,16 @@ class MQTTClient:
             return False
 
     # Métodos de conveniencia para comandos específicos
-    def send_ac_command(self, device_id: str, action: str) -> bool:
-        """Enviar comando de aire acondicionado"""
+    def send_ac_command(self, device_id: str, action: str,
+                        temperature: int = 24, mode: str = 'cool',
+                        fan_speed: str = 'auto') -> bool:
+        """Enviar comando de aire acondicionado con parámetros extendidos"""
         topic = f"{device_id}/ac/command"
         payload = {
             "action": action,
+            "temperature": temperature,
+            "mode": mode,
+            "fan_speed": fan_speed,
             "timestamp": int(now_argentina().timestamp())
         }
         return self.publish(topic, payload)

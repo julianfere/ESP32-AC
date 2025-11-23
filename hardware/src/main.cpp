@@ -45,21 +45,13 @@ int avgSamples = SAMPLES_FOR_AVERAGE;
 #pragma region CALLBACKS MQTT
 // ============================================
 
-void onAcCommandReceived(bool turnOn)
+void onAcCommandReceived(bool turnOn, uint8_t temperature, const String& mode, const String& fanSpeed)
 {
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  Serial.print("📡 Comando AC recibido: ");
-  Serial.println(turnOn ? "ENCENDER" : "APAGAR");
+  Serial.printf("📡 Comando AC recibido: %s, %d°C, %s, %s\n",
+                turnOn ? "ENCENDER" : "APAGAR", temperature, mode.c_str(), fanSpeed.c_str());
 
-  bool success = false;
-  if (turnOn)
-  {
-    success = aire.encender();
-  }
-  else
-  {
-    success = aire.apagar();
-  }
+  bool success = aire.enviarComando(turnOn, temperature, mode, fanSpeed);
 
   if (success)
   {
@@ -68,7 +60,8 @@ void onAcCommandReceived(bool turnOn)
 
     // Confirmar estado al backend
     unsigned long timestamp = timeClient.getEpochTime();
-    mqtt.publishAcStatus(aire.estaEncendido(), timestamp);
+    mqtt.publishAcStatus(aire.estaEncendido(), aire.getTemperatura(),
+                         aire.getModoStr(), aire.getFanStr(), timestamp);
   }
   else
   {
@@ -216,7 +209,8 @@ void setup()
 
   // Publicar estado inicial
   unsigned long timestamp = timeClient.getEpochTime();
-  mqtt.publishAcStatus(aire.estaEncendido(), timestamp);
+  mqtt.publishAcStatus(aire.estaEncendido(), aire.getTemperatura(),
+                       aire.getModoStr(), aire.getFanStr(), timestamp);
 
   uint8_t r, g, b;
   led.getColor(r, g, b);

@@ -4,8 +4,8 @@
 // ============================================
 // CONFIGURACIÓN WiFi
 // ============================================
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+#define WIFI_SSID "FereCasa_IoT"
+#define WIFI_PASSWORD "0042070239"
 
 // ============================================
 // CONFIGURACIÓN MQTT

@@ -225,7 +225,22 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
 // COMPONENTE: AC Control Tab
 // ============================================
 
-const ACControlTab = ({ onCommand, history }) => {
+const ACControlTab = ({ onCommand, history, acState, onStateChange }) => {
+    const modes = [
+        { value: 'cool', label: 'Frío', icon: '❄️' },
+        { value: 'heat', label: 'Calor', icon: '🔥' },
+        { value: 'auto', label: 'Auto', icon: '🔄' },
+        { value: 'fan', label: 'Ventilador', icon: '🌀' },
+        { value: 'dry', label: 'Seco', icon: '💧' }
+    ];
+
+    const fanSpeeds = [
+        { value: 'auto', label: 'Auto' },
+        { value: 'low', label: 'Bajo' },
+        { value: 'medium', label: 'Medio' },
+        { value: 'high', label: 'Alto' }
+    ];
+
     return html`
         <div>
             <h3 class="text-xl font-semibold mb-6 flex items-center">
@@ -234,9 +249,73 @@ const ACControlTab = ({ onCommand, history }) => {
                 </svg>
                 Control de Aire Acondicionado
             </h3>
+
+            <!-- Temperature Control -->
+            <div class="bg-gray-700 rounded-lg p-4 mb-4">
+                <label class="block text-sm font-medium mb-2">Temperatura: ${acState.temperature}°C</label>
+                <div class="flex items-center gap-4">
+                    <button
+                        onClick=${() => onStateChange({ temperature: Math.max(17, acState.temperature - 1) })}
+                        class="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xl"
+                    >-</button>
+                    <input
+                        type="range"
+                        min="17"
+                        max="30"
+                        value=${acState.temperature}
+                        onInput=${e => onStateChange({ temperature: parseInt(e.target.value) })}
+                        class="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <button
+                        onClick=${() => onStateChange({ temperature: Math.min(30, acState.temperature + 1) })}
+                        class="w-12 h-12 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xl"
+                    >+</button>
+                </div>
+                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>17°C</span>
+                    <span>30°C</span>
+                </div>
+            </div>
+
+            <!-- Mode Selection -->
+            <div class="bg-gray-700 rounded-lg p-4 mb-4">
+                <label class="block text-sm font-medium mb-2">Modo</label>
+                <div class="grid grid-cols-5 gap-2">
+                    ${modes.map(mode => html`
+                        <button
+                            onClick=${() => onStateChange({ mode: mode.value })}
+                            class="p-3 rounded-lg text-center transition-colors ${acState.mode === mode.value
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
+                        >
+                            <div class="text-xl">${mode.icon}</div>
+                            <div class="text-xs mt-1">${mode.label}</div>
+                        </button>
+                    `)}
+                </div>
+            </div>
+
+            <!-- Fan Speed -->
+            <div class="bg-gray-700 rounded-lg p-4 mb-6">
+                <label class="block text-sm font-medium mb-2">Velocidad del Ventilador</label>
+                <div class="grid grid-cols-4 gap-2">
+                    ${fanSpeeds.map(speed => html`
+                        <button
+                            onClick=${() => onStateChange({ fan_speed: speed.value })}
+                            class="px-4 py-2 rounded-lg text-sm transition-colors ${acState.fan_speed === speed.value
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
+                        >
+                            ${speed.label}
+                        </button>
+                    `)}
+                </div>
+            </div>
+
+            <!-- Power Buttons -->
             <div class="flex gap-4 mb-6">
                 <button
-                    onClick=${() => onCommand('on')}
+                    onClick=${() => onCommand('on', acState.temperature, acState.mode, acState.fan_speed)}
                     class="flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center justify-center space-x-2"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,7 +324,7 @@ const ACControlTab = ({ onCommand, history }) => {
                     <span>Encender AC</span>
                 </button>
                 <button
-                    onClick=${() => onCommand('off')}
+                    onClick=${() => onCommand('off', acState.temperature, acState.mode, acState.fan_speed)}
                     class="flex-1 px-6 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center justify-center space-x-2"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -769,6 +848,7 @@ const App = () => {
     const [latestData, setLatestData] = useState(null);
     const [measurements, setMeasurements] = useState([]);
     const [acStatus, setAcStatus] = useState('unknown');
+    const [acState, setAcState] = useState({ temperature: 24, mode: 'cool', fan_speed: 'auto', is_on: false });
     const [acHistory, setAcHistory] = useState([]);
     const [schedules, setSchedules] = useState([]);
     const [sleepTimers, setSleepTimers] = useState([]);
@@ -839,6 +919,12 @@ const App = () => {
             setLatestData(latest);
             setMeasurements(measurementsData.measurements || []);
             setAcStatus(status.state);
+            setAcState({
+                temperature: status.temperature || 24,
+                mode: status.mode || 'cool',
+                fan_speed: status.fan_speed || 'auto',
+                is_on: status.is_on || false
+            });
             setAcHistory(history.events || []);
         } catch (error) {
             showToast(`Error cargando datos: ${error.message}`, 'error');
@@ -852,14 +938,24 @@ const App = () => {
     };
 
     // AC Commands
-    const sendACCommand = async (action) => {
+    const sendACCommand = async (action, temperature = acState.temperature, mode = acState.mode, fan_speed = acState.fan_speed) => {
         try {
-            await apiRequest(`/devices/${DEVICE_ID}/ac/command`, 'POST', { action });
-            showToast(`AC ${action === 'on' ? 'encendido' : 'apagado'} exitosamente`, 'success');
+            await apiRequest(`/devices/${DEVICE_ID}/ac/command`, 'POST', {
+                action,
+                temperature,
+                mode,
+                fan_speed
+            });
+            showToast(`AC ${action === 'on' ? 'encendido' : 'apagado'}: ${temperature}°C, ${mode}, ${fan_speed}`, 'success');
             setTimeout(loadData, 500);
         } catch (error) {
             showToast(`Error: ${error.message}`, 'error');
         }
+    };
+
+    // Update AC state locally
+    const updateAcState = (newState) => {
+        setAcState(prev => ({ ...prev, ...newState }));
     };
 
     // LED Command
@@ -1085,7 +1181,7 @@ const App = () => {
                         </nav>
                     </div>
                     <div class="p-6">
-                        ${activeTab === 'ac' && ACControlTab({ onCommand: sendACCommand, history: acHistory })}
+                        ${activeTab === 'ac' && ACControlTab({ onCommand: sendACCommand, history: acHistory, acState: acState, onStateChange: updateAcState })}
                         ${activeTab === 'timer' && SleepTimerTab({ timers: sleepTimers, onLoadTimers: loadSleepTimers, onCreateTimer: createSleepTimer, onCancelTimer: cancelSleepTimer })}
                         ${activeTab === 'led' && LEDControlTab({ onSend: sendLEDCommand })}
                         ${activeTab === 'schedules' && SchedulesTab({ schedules, onLoadSchedules: loadSchedules, onCreateSchedule: createSchedule, onDeleteSchedule: deleteSchedule })}

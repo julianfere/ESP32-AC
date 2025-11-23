@@ -1,6 +1,6 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import Device, Measurement, MeasurementAverage, AcEvent, AsyncSessionLocal
+from database import Device, Measurement, MeasurementAverage, AcEvent, AcState, AsyncSessionLocal
 from datetime import datetime
 from typing import Dict, Any
 import json
@@ -84,25 +84,47 @@ class MessageHandler:
         """Manejar estado del aire acondicionado"""
         device_id = message['device_id']
         payload = message['payload']
-        
+
         try:
             state = payload.get('state')  # 'on' or 'off'
+            temperature = payload.get('temperature', 24)
+            mode = payload.get('mode', 'cool')
+            fan_speed = payload.get('fan_speed', 'auto')
             confirmed = payload.get('confirmed', False)
             timestamp = parse_message_timestamp(payload)
-            
+
             async with AsyncSessionLocal() as session:
+                # Actualizar estado del AC
+                result = await session.execute(
+                    select(AcState).where(AcState.device_id == device_id)
+                )
+                ac_state = result.scalar_one_or_none()
+
+                if not ac_state:
+                    ac_state = AcState(device_id=device_id)
+                    session.add(ac_state)
+
+                ac_state.is_on = state == 'on'
+                ac_state.temperature = temperature
+                ac_state.mode = mode
+                ac_state.fan_speed = fan_speed
+                ac_state.last_updated = timestamp
+
                 # Guardar evento
                 ac_event = AcEvent(
                     device_id=device_id,
                     action=state,
+                    temperature=temperature,
+                    mode=mode,
+                    fan_speed=fan_speed,
                     triggered_by='confirmed' if confirmed else 'unknown',
                     timestamp=timestamp
                 )
                 session.add(ac_event)
                 await session.commit()
-                
-                print(f"❄️  [{device_id}] AC: {state.upper()} {'✓ confirmado' if confirmed else ''}")
-        
+
+                print(f"❄️  [{device_id}] AC: {state.upper()} {temperature}°C {mode} {fan_speed} {'✓' if confirmed else ''}")
+
         except Exception as e:
             print(f"✗ Error guardando estado AC: {e}")
     

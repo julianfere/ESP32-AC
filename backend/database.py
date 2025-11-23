@@ -68,17 +68,34 @@ class MeasurementAverage(Base):
         return f"<MeasurementAverage(device_id='{self.device_id}', avg_temp={self.avg_temperature})>"
 
 
+class AcState(Base):
+    __tablename__ = "ac_state"
+
+    device_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    is_on: Mapped[bool] = mapped_column(Boolean, default=False)
+    temperature: Mapped[int] = mapped_column(Integer, default=24)  # 17-30°C
+    mode: Mapped[str] = mapped_column(String(10), default='cool')  # cool/heat/auto/fan/dry
+    fan_speed: Mapped[str] = mapped_column(String(10), default='auto')  # auto/low/medium/high
+    last_updated: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def __repr__(self):
+        return f"<AcState(device_id='{self.device_id}', is_on={self.is_on}, temp={self.temperature})>"
+
+
 class AcEvent(Base):
     __tablename__ = "ac_events"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     device_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     action: Mapped[str] = mapped_column(String(10), nullable=False)  # 'on' or 'off'
+    temperature: Mapped[Optional[int]] = mapped_column(Integer)  # 17-30°C
+    mode: Mapped[Optional[str]] = mapped_column(String(10))  # cool/heat/auto/fan/dry
+    fan_speed: Mapped[Optional[str]] = mapped_column(String(10))  # auto/low/medium/high
     triggered_by: Mapped[Optional[str]] = mapped_column(String(50))  # 'manual', 'scheduled', 'automation'
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=now_argentina, index=True)
-    
+
     def __repr__(self):
-        return f"<AcEvent(device_id='{self.device_id}', action='{self.action}')>"
+        return f"<AcEvent(device_id='{self.device_id}', action='{self.action}', temp={self.temperature})>"
 
 
 class Schedule(Base):
