@@ -108,32 +108,88 @@ function StatusCard({ temperature, humidity, timestamp }) {
 }
 
 // AC Control Card Component
-function ACControlCard({ acStatus, onAcCommand, onTimer }) {
+function ACControlCard({ acStatus, acState, onAcCommand, onTimer, onStateChange }) {
+    const modes = [
+        { value: 'cool', label: 'Frío', icon: '❄️' },
+        { value: 'auto', label: 'Auto', icon: '🔄' },
+        { value: 'fan', label: 'Vent', icon: '🌀' },
+        { value: 'dry', label: 'Seco', icon: '💧' }
+    ];
+
+    const fanSpeeds = [
+        { value: 'auto', label: 'Auto' },
+        { value: 'low', label: 'Bajo' },
+        { value: 'medium', label: 'Medio' },
+        { value: 'high', label: 'Alto' }
+    ];
+
     return html`
         <div class="card ac-control-card">
-            <h2><${Icon} name="snowflake" size=${20} /> Control de Aire Acondicionado</h2>
-            <div class="ac-status">
-                <span class="ac-status-label">Estado:</span>
-                <span class="ac-status-value ${acStatus}">
-                    ${acStatus === 'on' ? 'ENCENDIDO' : 'APAGADO'}
-                </span>
+            <h2><${Icon} name="snowflake" size=${20} /> Control de AC</h2>
+
+            <!-- Temperature Display -->
+            <div class="temp-display">
+                <div class="temp-value">${acState.temperature}°</div>
+                <div class="temp-controls">
+                    <button class="temp-btn minus" onClick=${() => onStateChange({ temperature: Math.max(17, acState.temperature - 1) })}>
+                        −
+                    </button>
+                    <button class="temp-btn plus" onClick=${() => onStateChange({ temperature: Math.min(30, acState.temperature + 1) })}>
+                        +
+                    </button>
+                </div>
             </div>
+
+            <!-- Power Buttons -->
             <div class="ac-buttons">
-                <button class="btn btn-cool btn-large" onClick=${() => onAcCommand('on')}>
-                    <span class="btn-icon"><${Icon} name="power" size=${20} /></span>
+                <button class="btn btn-cool btn-large" onClick=${() => onAcCommand('on', acState.temperature, acState.mode, acState.fan_speed)}>
+                    <span class="btn-icon">❄️</span>
                     ENCENDER
                 </button>
-                <button class="btn btn-warm btn-large" onClick=${() => onAcCommand('off')}>
-                    <span class="btn-icon"><${Icon} name="power-off" size=${20} /></span>
+                <button class="btn btn-warm btn-large" onClick=${() => onAcCommand('off', acState.temperature, acState.mode, acState.fan_speed)}>
+                    <span class="btn-icon">⏻</span>
                     APAGAR
                 </button>
             </div>
+
+            <!-- Mode Selection -->
+            <div class="mode-section">
+                <label>Modo</label>
+                <div class="mode-buttons">
+                    ${modes.map(mode => html`
+                        <button
+                            class="mode-btn ${acState.mode === mode.value ? 'active' : ''}"
+                            onClick=${() => onStateChange({ mode: mode.value })}
+                        >
+                            <span class="mode-icon">${mode.icon}</span>
+                            <span class="mode-label">${mode.label}</span>
+                        </button>
+                    `)}
+                </div>
+            </div>
+
+            <!-- Fan Speed -->
+            <div class="fan-section">
+                <label>Ventilador</label>
+                <div class="fan-buttons">
+                    ${fanSpeeds.map(speed => html`
+                        <button
+                            class="fan-btn ${acState.fan_speed === speed.value ? 'active' : ''}"
+                            onClick=${() => onStateChange({ fan_speed: speed.value })}
+                        >
+                            ${speed.label}
+                        </button>
+                    `)}
+                </div>
+            </div>
+
+            <!-- Quick Timer -->
             <div class="quick-timer">
                 <label><${Icon} name="timer" size=${16} /> Apagar en:</label>
                 <div class="timer-buttons">
-                    <button class="btn btn-timer" onClick=${() => onTimer(30)}>30 min</button>
-                    <button class="btn btn-timer" onClick=${() => onTimer(60)}>1 hora</button>
-                    <button class="btn btn-timer" onClick=${() => onTimer(120)}>2 horas</button>
+                    <button class="btn btn-timer" onClick=${() => onTimer(30)}>30m</button>
+                    <button class="btn btn-timer" onClick=${() => onTimer(60)}>1h</button>
+                    <button class="btn btn-timer" onClick=${() => onTimer(120)}>2h</button>
                 </div>
             </div>
         </div>
@@ -493,11 +549,17 @@ function App() {
     const [humidity, setHumidity] = useState(null);
     const [timestamp, setTimestamp] = useState(null);
     const [acStatus, setAcStatus] = useState(null);
+    const [acState, setAcState] = useState({ temperature: 24, mode: 'cool', fan_speed: 'auto' });
     const [stats, setStats] = useState({ temperature: {}, humidity: {} });
     const [schedules, setSchedules] = useState([]);
     const [chartPeriod, setChartPeriod] = useState('day');
     const [modalVisible, setModalVisible] = useState(false);
     const [toast, setToast] = useState({ message: '', type: 'info', visible: false });
+
+    function updateAcState(newState) {
+        setAcState(prev => ({ ...prev, ...newState }));
+        tg.HapticFeedback.selectionChanged();
+    }
 
     function showToast(message, type = 'info') {
         setToast({ message, type, visible: true });
@@ -513,7 +575,14 @@ function App() {
             setTemperature(latest.temperature);
             setHumidity(latest.humidity);
             setTimestamp(latest.timestamp);
-            setAcStatus(acRes.current_status);
+            setAcStatus(acRes.state || acRes.current_status);
+            if (acRes.temperature) {
+                setAcState({
+                    temperature: acRes.temperature,
+                    mode: acRes.mode || 'cool',
+                    fan_speed: acRes.fan_speed || 'auto'
+                });
+            }
         } catch (error) {
             console.error('Failed to load status:', error);
         }
@@ -537,14 +606,14 @@ function App() {
         }
     }
 
-    async function sendAcCommand(action) {
+    async function sendAcCommand(action, temperature = acState.temperature, mode = acState.mode, fan_speed = acState.fan_speed) {
         try {
             tg.HapticFeedback.impactOccurred('medium');
             await apiRequest(`/device/${deviceId}/ac`, {
                 method: 'POST',
-                body: JSON.stringify({ action }),
+                body: JSON.stringify({ action, temperature, mode, fan_speed }),
             });
-            showToast(`AC ${action === 'on' ? 'encendido' : 'apagado'} correctamente`, 'success');
+            showToast(`AC ${action === 'on' ? 'encendido' : 'apagado'}: ${temperature}°C`, 'success');
             setTimeout(loadCurrentStatus, 1000);
         } catch (error) {
             console.error('Failed to send AC command:', error);
@@ -638,8 +707,10 @@ function App() {
             />
             <${ACControlCard}
                 acStatus=${acStatus}
+                acState=${acState}
                 onAcCommand=${sendAcCommand}
                 onTimer=${createTimer}
+                onStateChange=${updateAcState}
             />
             <${ChartCard}
                 period=${chartPeriod}

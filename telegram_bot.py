@@ -319,7 +319,7 @@ async def ac_set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "**Ejemplos:**\n"
             "• /ac_set 24 - Solo temperatura\n"
             "• /ac_set 22 cool auto - Completo\n\n"
-            "**Modos:** cool, heat, auto, fan, dry\n"
+            "**Modos:** cool, auto, fan, dry\n"
             "**Ventilador:** auto, low, medium, high",
             parse_mode="Markdown"
         )
@@ -341,8 +341,8 @@ async def ac_set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if len(context.args) >= 2:
             mode = context.args[1].lower()
-            if mode not in ['cool', 'heat', 'auto', 'fan', 'dry']:
-                await update.message.reply_text("❌ Modo inválido")
+            if mode not in ['cool', 'auto', 'fan', 'dry']:
+                await update.message.reply_text("❌ Modo inválido (cool, auto, fan, dry)")
                 return
 
         if len(context.args) >= 3:

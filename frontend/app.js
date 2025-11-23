@@ -228,9 +228,8 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
 const ACControlTab = ({ onCommand, history, acState, onStateChange }) => {
     const modes = [
         { value: 'cool', label: 'Frío', icon: '❄️' },
-        { value: 'heat', label: 'Calor', icon: '🔥' },
         { value: 'auto', label: 'Auto', icon: '🔄' },
-        { value: 'fan', label: 'Ventilador', icon: '🌀' },
+        { value: 'fan', label: 'Vent', icon: '🌀' },
         { value: 'dry', label: 'Seco', icon: '💧' }
     ];
 
@@ -243,95 +242,72 @@ const ACControlTab = ({ onCommand, history, acState, onStateChange }) => {
 
     return html`
         <div>
-            <h3 class="text-xl font-semibold mb-6 flex items-center">
-                <svg class="w-6 h-6 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
-                </svg>
-                Control de Aire Acondicionado
-            </h3>
-
-            <!-- Temperature Control -->
-            <div class="bg-gray-700 rounded-lg p-4 mb-4">
-                <label class="block text-sm font-medium mb-2">Temperatura: ${acState.temperature}°C</label>
-                <div class="flex items-center gap-4">
+            <!-- Temperature Display & Control - Big and Touch Friendly -->
+            <div class="bg-gradient-to-br from-blue-600 to-cyan-700 rounded-2xl p-6 mb-4 text-center">
+                <div class="text-6xl font-bold mb-2">${acState.temperature}°</div>
+                <div class="flex items-center justify-center gap-6">
                     <button
                         onClick=${() => onStateChange({ temperature: Math.max(17, acState.temperature - 1) })}
-                        class="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xl"
-                    >-</button>
-                    <input
-                        type="range"
-                        min="17"
-                        max="30"
-                        value=${acState.temperature}
-                        onInput=${e => onStateChange({ temperature: parseInt(e.target.value) })}
-                        class="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    />
+                        class="w-16 h-16 bg-white/20 hover:bg-white/30 text-white rounded-full font-bold text-3xl active:scale-95 transition-transform"
+                    >−</button>
                     <button
                         onClick=${() => onStateChange({ temperature: Math.min(30, acState.temperature + 1) })}
-                        class="w-12 h-12 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xl"
+                        class="w-16 h-16 bg-white/20 hover:bg-white/30 text-white rounded-full font-bold text-3xl active:scale-95 transition-transform"
                     >+</button>
-                </div>
-                <div class="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>17°C</span>
-                    <span>30°C</span>
                 </div>
             </div>
 
-            <!-- Mode Selection -->
-            <div class="bg-gray-700 rounded-lg p-4 mb-4">
-                <label class="block text-sm font-medium mb-2">Modo</label>
-                <div class="grid grid-cols-5 gap-2">
+            <!-- Power Buttons - Large for easy touch -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button
+                    onClick=${() => onCommand('on', acState.temperature, acState.mode, acState.fan_speed)}
+                    class="py-5 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                >
+                    <span class="text-2xl">❄️</span>
+                    <span>Encender</span>
+                </button>
+                <button
+                    onClick=${() => onCommand('off', acState.temperature, acState.mode, acState.fan_speed)}
+                    class="py-5 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                >
+                    <span class="text-2xl">⏻</span>
+                    <span>Apagar</span>
+                </button>
+            </div>
+
+            <!-- Mode Selection - 4 columns for mobile -->
+            <div class="bg-gray-700/50 rounded-xl p-4 mb-4">
+                <label class="block text-sm font-medium mb-3 text-gray-300">Modo</label>
+                <div class="grid grid-cols-4 gap-2">
                     ${modes.map(mode => html`
                         <button
                             onClick=${() => onStateChange({ mode: mode.value })}
-                            class="p-3 rounded-lg text-center transition-colors ${acState.mode === mode.value
-                                ? 'bg-primary-600 text-white'
+                            class="py-3 rounded-xl text-center transition-all active:scale-95 ${acState.mode === mode.value
+                                ? 'bg-primary-600 text-white shadow-lg'
                                 : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
                         >
-                            <div class="text-xl">${mode.icon}</div>
+                            <div class="text-2xl">${mode.icon}</div>
                             <div class="text-xs mt-1">${mode.label}</div>
                         </button>
                     `)}
                 </div>
             </div>
 
-            <!-- Fan Speed -->
-            <div class="bg-gray-700 rounded-lg p-4 mb-6">
-                <label class="block text-sm font-medium mb-2">Velocidad del Ventilador</label>
+            <!-- Fan Speed - Touch friendly -->
+            <div class="bg-gray-700/50 rounded-xl p-4 mb-6">
+                <label class="block text-sm font-medium mb-3 text-gray-300">Ventilador</label>
                 <div class="grid grid-cols-4 gap-2">
                     ${fanSpeeds.map(speed => html`
                         <button
                             onClick=${() => onStateChange({ fan_speed: speed.value })}
-                            class="px-4 py-2 rounded-lg text-sm transition-colors ${acState.fan_speed === speed.value
-                                ? 'bg-primary-600 text-white'
+                            class="py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${acState.fan_speed === speed.value
+                                ? 'bg-primary-600 text-white shadow-lg'
                                 : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
                         >
                             ${speed.label}
                         </button>
                     `)}
                 </div>
-            </div>
-
-            <!-- Power Buttons -->
-            <div class="flex gap-4 mb-6">
-                <button
-                    onClick=${() => onCommand('on', acState.temperature, acState.mode, acState.fan_speed)}
-                    class="flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center justify-center space-x-2"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span>Encender AC</span>
-                </button>
-                <button
-                    onClick=${() => onCommand('off', acState.temperature, acState.mode, acState.fan_speed)}
-                    class="flex-1 px-6 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center justify-center space-x-2"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    <span>Apagar AC</span>
-                </button>
             </div>
 
             <h4 class="text-lg font-semibold mb-4 mt-8">Historial de Comandos</h4>

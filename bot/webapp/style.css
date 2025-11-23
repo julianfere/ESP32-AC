@@ -323,39 +323,130 @@ h2 {
 }
 
 /* AC Control Card */
-.ac-status {
+.temp-display {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.temp-value {
+    font-size: 4rem;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+    margin-bottom: 16px;
+}
+
+.temp-controls {
     display: flex;
     justify-content: center;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 20px;
-    padding: 12px;
-    background: var(--tg-theme-secondary-bg-color);
-    border-radius: 8px;
+    gap: 24px;
 }
 
-.ac-status-label {
-    font-weight: 500;
+.temp-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    font-size: 2rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transition: all 0.2s;
 }
 
-.ac-status-value {
-    font-weight: 700;
-    font-size: 1.125rem;
-}
-
-.ac-status-value.on {
-    color: var(--primary-color);
-}
-
-.ac-status-value.off {
-    color: var(--secondary-color);
+.temp-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .ac-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+}
+
+.mode-section,
+.fan-section {
+    margin-bottom: 16px;
+}
+
+.mode-section label,
+.fan-section label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--tg-theme-hint-color);
+}
+
+.mode-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.mode-btn {
+    padding: 12px 8px;
+    border: none;
+    border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color);
+    color: var(--tg-theme-text-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.mode-btn:active {
+    transform: scale(0.95);
+}
+
+.mode-btn.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.mode-icon {
+    display: block;
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+}
+
+.mode-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.fan-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.fan-btn {
+    padding: 10px 8px;
+    border: none;
+    border-radius: 8px;
+    background: var(--tg-theme-secondary-bg-color);
+    color: var(--tg-theme-text-color);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.fan-btn:active {
+    transform: scale(0.95);
+}
+
+.fan-btn.active {
+    background: var(--primary-color);
+    color: white;
 }
 
 .quick-timer {
