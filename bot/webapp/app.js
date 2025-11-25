@@ -251,6 +251,38 @@ function ChartCard({ period, onPeriodChange }) {
         if (!chartRef.current) return;
         const ctx = chartRef.current.getContext('2d');
 
+
+        const tempHourly = Object.values(
+            tempData.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+        );
+
+        const humidityHourly = Object.values(
+            humidityData.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+        );
+
+        // === GRADIENTES ===
+        const gTemp = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gTemp.addColorStop(0, 'rgba(249,115,22,0.3)');
+        gTemp.addColorStop(1, 'rgba(249,115,22,0)');
+
+        const gHum = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gHum.addColorStop(0, 'rgba(59,130,246,0.3)');
+        gHum.addColorStop(1, 'rgba(59,130,246,0)');
+
+        // === ESCALAS DINÁMICAS ===
+        const tempMin = Math.min(...tempHourly.map(x => x.value));
+        const tempMax = Math.max(...tempHourly.map(x => x.value));
+
+        const humMin = Math.min(...humidityHourly.map(x => x.value));
+        const humMax = Math.max(...humidityHourly.map(x => x.value));
+
+        // === FORMATO LABELS ===
+        const labels = tempHourly.map(d => {
+            const date = new Date(d.timestamp);
+            return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+        });
+
+
         if (chartInstance.current) {
             chartInstance.current.destroy();
         }
@@ -258,69 +290,69 @@ function ChartCard({ period, onPeriodChange }) {
         chartInstance.current = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels,
                 datasets: [
                     {
                         label: 'Temperatura (°C)',
-                        data: temperatures,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
+                        data: tempHourly.map(d => d.value),
+                        borderColor: 'rgb(249,115,22)',
+                        backgroundColor: gTemp,
+                        tension: 0.3,
                         fill: true,
-                        yAxisID: 'y',
+                        borderWidth: 2,
+                        yAxisID: 'y'
                     },
                     {
                         label: 'Humedad (%)',
-                        data: humidities,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4,
+                        data: humidityHourly.map(d => d.value),
+                        borderColor: 'rgb(59,130,246)',
+                        backgroundColor: gHum,
+                        tension: 0.3,
                         fill: true,
-                        yAxisID: 'y1',
+                        borderWidth: 2,
+                        yAxisID: 'y1'
                     }
                 ]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top',
-                    },
+                        labels: { color: '#e5e7eb' }
+                    }
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            color: '#9ca3af',
+                            maxTicksLimit: 8
+                        },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
                     y: {
                         type: 'linear',
-                        display: true,
                         position: 'left',
-                        min: 0,
-                        max: 50,
                         ticks: {
-                            callback: function (value) {
-                                return value + '°C';
-                            }
-                        }
+                            color: '#f97316',
+                            callback: v => v + '°C'
+                        },
+                        suggestedMin: tempMin - 1,
+                        suggestedMax: tempMax + 1,
+                        grid: { color: 'rgba(255,255,255,0.06)' }
                     },
                     y1: {
                         type: 'linear',
-                        display: true,
                         position: 'right',
-                        min: 0,
-                        max: 100,
                         ticks: {
-                            callback: function (value) {
-                                return value + '%';
-                            }
+                            color: '#3b82f6',
+                            callback: v => v + '%'
                         },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                    },
-                    x: {
-                        ticks: { maxTicksLimit: 8 }
+                        suggestedMin: humMin - 2,
+                        suggestedMax: humMax + 2,
+                        grid: { drawOnChartArea: false }
                     }
-                },
+                }
             }
         });
     }

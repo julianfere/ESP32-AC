@@ -95,85 +95,102 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
             chartRef.current.destroy();
         }
 
+        const tempHourly = Object.values(
+            tempData.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+        );
+
+        const humidityHourly = Object.values(
+            humidityData.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+        );
+
         const ctx = canvasRef.current.getContext('2d');
+
+        // === GRADIENTES ===
+        const gTemp = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gTemp.addColorStop(0, 'rgba(249,115,22,0.3)');
+        gTemp.addColorStop(1, 'rgba(249,115,22,0)');
+
+        const gHum = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gHum.addColorStop(0, 'rgba(59,130,246,0.3)');
+        gHum.addColorStop(1, 'rgba(59,130,246,0)');
+
+        // === ESCALAS DINÁMICAS ===
+        const tempMin = Math.min(...tempHourly.map(x => x.value));
+        const tempMax = Math.max(...tempHourly.map(x => x.value));
+
+        const humMin = Math.min(...humidityHourly.map(x => x.value));
+        const humMax = Math.max(...humidityHourly.map(x => x.value));
+
+        // === FORMATO LABELS ===
+        const labels = tempHourly.map(d => {
+            const date = new Date(d.timestamp);
+            return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+        });
+
         chartRef.current = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: tempData.map(d => {
-                    const date = new Date(d.timestamp);
-                    if (period === 'week') {
-                        return date.toLocaleDateString('es', { day: '2-digit', month: '2-digit' });
-                    }
-                    return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
-                }),
+                labels,
                 datasets: [
                     {
                         label: 'Temperatura (°C)',
-                        data: tempData.map(d => d.value),
-                        borderColor: 'rgb(249, 115, 22)',
-                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                        tension: 0.4,
+                        data: tempHourly.map(d => d.value),
+                        borderColor: 'rgb(249,115,22)',
+                        backgroundColor: gTemp,
+                        tension: 0.3,
                         fill: true,
+                        borderWidth: 2,
                         yAxisID: 'y'
                     },
                     {
                         label: 'Humedad (%)',
-                        data: humidityData.map(d => d.value),
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
+                        data: humidityHourly.map(d => d.value),
+                        borderColor: 'rgb(59,130,246)',
+                        backgroundColor: gHum,
+                        tension: 0.3,
                         fill: true,
+                        borderWidth: 2,
                         yAxisID: 'y1'
                     }
                 ]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top',
                         labels: { color: '#e5e7eb' }
                     }
                 },
                 scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        min: 0,
-                        max: 50,
-                        ticks: {
-                            color: '#f97316',
-                            callback: function(value) {
-                                return value + '°C';
-                            }
-                        },
-                        grid: { color: '#374151' }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        min: 0,
-                        max: 100,
-                        ticks: {
-                            color: '#3b82f6',
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        },
-                        grid: {
-                            drawOnChartArea: false
-                        }
-                    },
                     x: {
                         ticks: {
                             color: '#9ca3af',
                             maxTicksLimit: 8
                         },
-                        grid: { color: '#374151' }
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        ticks: {
+                            color: '#f97316',
+                            callback: v => v + '°C'
+                        },
+                        suggestedMin: tempMin - 1,
+                        suggestedMax: tempMax + 1,
+                        grid: { color: 'rgba(255,255,255,0.06)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        ticks: {
+                            color: '#3b82f6',
+                            callback: v => v + '%'
+                        },
+                        suggestedMin: humMin - 2,
+                        suggestedMax: humMax + 2,
+                        grid: { drawOnChartArea: false }
                     }
                 }
             }
@@ -283,8 +300,8 @@ const ACControlTab = ({ onCommand, history, acState, onStateChange }) => {
                         <button
                             onClick=${() => onStateChange({ mode: mode.value })}
                             class="py-3 rounded-xl text-center transition-all active:scale-95 ${acState.mode === mode.value
-                                ? 'bg-primary-600 text-white shadow-lg'
-                                : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
+            ? 'bg-primary-600 text-white shadow-lg'
+            : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
                         >
                             <div class="text-2xl">${mode.icon}</div>
                             <div class="text-xs mt-1">${mode.label}</div>
@@ -301,8 +318,8 @@ const ACControlTab = ({ onCommand, history, acState, onStateChange }) => {
                         <button
                             onClick=${() => onStateChange({ fan_speed: speed.value })}
                             class="py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${acState.fan_speed === speed.value
-                                ? 'bg-primary-600 text-white shadow-lg'
-                                : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
+                    ? 'bg-primary-600 text-white shadow-lg'
+                    : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}"
                         >
                             ${speed.label}
                         </button>
@@ -871,12 +888,12 @@ const App = () => {
             // Calculate date range based on period
             const now = new Date();
             let fromDate;
-
-            if (period === 'hour') {
+            const p = period ?? 'day';
+            if (p === 'hour') {
                 fromDate = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
-            } else if (period === 'day') {
+            } else if (p === 'day') {
                 fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-            } else if (period === 'week') {
+            } else if (p === 'week') {
                 fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
             }
 
