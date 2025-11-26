@@ -231,7 +231,7 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
                     </button>
                 </div>
             </div>
-            <div style="height: 300px; position: relative;">
+            <div style="height: 300px; width: 100%; position: relative;">
                 <canvas ref=${canvasRef}></canvas>
             </div>
         </div>
