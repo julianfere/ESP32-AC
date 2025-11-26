@@ -106,11 +106,11 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
         const ctx = canvasRef.current.getContext('2d');
 
         // === GRADIENTES ===
-        const gTemp = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        const gTemp = ctx.createLinearGradient(0, 0, 0, canvasRef.current.height);
         gTemp.addColorStop(0, 'rgba(249,115,22,0.3)');
         gTemp.addColorStop(1, 'rgba(249,115,22,0)');
 
-        const gHum = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        const gHum = ctx.createLinearGradient(0, 0, 0, canvasRef.current.height);
         gHum.addColorStop(0, 'rgba(59,130,246,0.3)');
         gHum.addColorStop(1, 'rgba(59,130,246,0)');
 

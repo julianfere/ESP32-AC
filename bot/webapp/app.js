@@ -261,11 +261,11 @@ function ChartCard({ period, onPeriodChange }) {
         );
 
         // === GRADIENTES ===
-        const gTemp = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        const gTemp = ctx.createLinearGradient(0, 0, 0, chartRef.current.height);
         gTemp.addColorStop(0, 'rgba(249,115,22,0.3)');
         gTemp.addColorStop(1, 'rgba(249,115,22,0)');
 
-        const gHum = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        const gHum = ctx.createLinearGradient(0, 0, 0, chartRef.current.height);
         gHum.addColorStop(0, 'rgba(59,130,246,0.3)');
         gHum.addColorStop(1, 'rgba(59,130,246,0)');
 
@@ -275,13 +275,6 @@ function ChartCard({ period, onPeriodChange }) {
 
         const humMin = Math.min(...humidityHourly.map(x => x.value));
         const humMax = Math.max(...humidityHourly.map(x => x.value));
-
-        // === FORMATO LABELS ===
-        const labels = tempHourly.map(d => {
-            const date = new Date(d.timestamp);
-            return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
-        });
-
 
         if (chartInstance.current) {
             chartInstance.current.destroy();
