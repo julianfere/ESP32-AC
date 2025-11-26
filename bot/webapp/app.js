@@ -253,11 +253,11 @@ function ChartCard({ period, onPeriodChange }) {
 
 
         const tempHourly = Object.values(
-            tempData.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+            temperatures.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
         );
 
         const humidityHourly = Object.values(
-            humidityData.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+            humidities.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
         );
 
         // === GRADIENTES ===
