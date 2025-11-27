@@ -767,13 +767,14 @@ def create_webapp():
     # API proxy endpoints
     app.router.add_get('/api/device/{device_id}/measurements/latest', proxy_device_measurements_latest)
     app.router.add_get('/api/device/{device_id}/ac/status', proxy_device_ac_status)
-    app.router.add_post('/api/device/{device_id}/ac', proxy_device_ac_command)
+    app.router.add_post('/api/device/{device_id}/ac/command', proxy_device_ac_command)
     app.router.add_get('/api/device/{device_id}/measurements', proxy_device_measurements)
     app.router.add_get('/api/device/{device_id}/stats', proxy_device_stats)
     app.router.add_get('/api/device/{device_id}/schedules', proxy_device_schedules)
     app.router.add_post('/api/device/{device_id}/schedules', proxy_device_schedules)
     app.router.add_delete('/api/device/{device_id}/schedules/{schedule_id}', proxy_device_schedule_delete)
     app.router.add_post('/api/device/{device_id}/timer', proxy_device_timer)
+    app.router.add_post('/api/device/{device_id}/sleep-timers', proxy_device_timer)
 
     # Alerts configuration
     app.router.add_route('*', '/api/alerts/config', handle_alerts_config)

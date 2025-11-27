@@ -156,6 +156,7 @@ const CombinedChartComponent = ({ tempData, humidityData, period, onPeriodChange
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,

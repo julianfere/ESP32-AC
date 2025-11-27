@@ -309,6 +309,7 @@ function ChartCard({ period, onPeriodChange }) {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
@@ -634,7 +635,7 @@ function App() {
     async function sendAcCommand(action, temperature = acState.temperature, mode = acState.mode, fan_speed = acState.fan_speed) {
         try {
             tg.HapticFeedback.impactOccurred('medium');
-            await apiRequest(`/device/${deviceId}/ac`, {
+            await apiRequest(`/device/${deviceId}/ac/command`, {
                 method: 'POST',
                 body: JSON.stringify({ action, temperature, mode, fan_speed }),
             });
@@ -651,7 +652,7 @@ function App() {
             tg.HapticFeedback.impactOccurred('light');
             await apiRequest(`/device/${deviceId}/timer`, {
                 method: 'POST',
-                body: JSON.stringify({ minutes }),
+                body: JSON.stringify({ delay_minutes: minutes, action: 'off' }),
             });
             const hours = Math.floor(minutes / 60);
             const mins = minutes % 60;
