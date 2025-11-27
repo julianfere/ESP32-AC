@@ -239,8 +239,8 @@ function ChartCard({ period, onPeriodChange }) {
                 return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
             });
 
-            const temperatures = sortedMeasurements.map(m => parseFloat(m.temperature));
-            const humidities = sortedMeasurements.map(m => parseFloat(m.humidity));
+            const temperatures = sortedMeasurements.map(m => ({ value: parseFloat(m.temperature), timestamp: m.timestamp }));
+            const humidities = sortedMeasurements.map(m => ({ value: parseFloat(m.humidity), timestamp: m.timestamp }));
             updateChart(labels, temperatures, humidities);
         } catch (error) {
             console.error('Failed to load chart data:', error);
@@ -251,13 +251,20 @@ function ChartCard({ period, onPeriodChange }) {
         if (!chartRef.current) return;
         const ctx = chartRef.current.getContext('2d');
 
-
         const tempHourly = Object.values(
-            temperatures.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+            temperatures.reduce((a, x) => {
+                const hourKey = x.timestamp.slice(0, 13);
+                a[hourKey] ??= x;
+                return a;
+            }, {})
         );
 
         const humidityHourly = Object.values(
-            humidities.reduce((a, x) => (a[x.timestamp.slice(0, 13)] ??= x, a), {})
+            humidities.reduce((a, x) => {
+                const hourKey = x.timestamp.slice(0, 13);
+                a[hourKey] ??= x;
+                return a;
+            }, {})
         );
 
         // === GRADIENTES ===
